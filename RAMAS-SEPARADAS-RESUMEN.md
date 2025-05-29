@@ -5,7 +5,10 @@
 ### 📋 RAMAS CREADAS
 
 #### 1. **`backend/production`** 🔧
+<<<<<<< HEAD
 
+=======
+>>>>>>> frontend/production
 - **Contiene**: Solo archivos del backend (API)
 - **Directorio principal**: `api/`
 - **Stack**: NestJS + Prisma + PostgreSQL
@@ -14,7 +17,10 @@
 - **Estado**: ✅ Compilado y listo
 
 #### 2. **`frontend/production`** 🎨
+<<<<<<< HEAD
 
+=======
+>>>>>>> frontend/production
 - **Contiene**: Solo archivos del frontend (Web)
 - **Directorio principal**: `web/`
 - **Stack**: Next.js 15 + Tailwind CSS v4.1
@@ -27,7 +33,10 @@
 ## 🔄 PRÓXIMOS PASOS
 
 ### **PASO 1: Subir Ramas a GitHub**
+<<<<<<< HEAD
 
+=======
+>>>>>>> frontend/production
 ```bash
 # Cuando la conectividad esté disponible:
 git push origin backend/production
@@ -37,7 +46,10 @@ git push origin frontend/production
 ### **PASO 2: Configurar en Dokploy**
 
 #### **Backend (Desplegar PRIMERO)** 🔧
+<<<<<<< HEAD
 
+=======
+>>>>>>> frontend/production
 1. **Crear aplicación**: `dela-platform-api`
 2. **Repo**: `https://github.com/Jenaru0/dela-platform.git`
 3. **Branch**: `backend/production`
@@ -45,7 +57,10 @@ git push origin frontend/production
 5. **Variables**: Ver `BACKEND-DEPLOY.md`
 
 #### **Frontend (Desplegar SEGUNDO)** 🎨
+<<<<<<< HEAD
 
+=======
+>>>>>>> frontend/production
 1. **Crear aplicación**: `dela-platform-web`
 2. **Repo**: `https://github.com/Jenaru0/dela-platform.git`
 3. **Branch**: `frontend/production`
@@ -57,7 +72,10 @@ git push origin frontend/production
 ## 📊 BENEFICIOS DEL DESPLIEGUE SEPARADO
 
 ### ✅ **Ventajas**
+<<<<<<< HEAD
 
+=======
+>>>>>>> frontend/production
 - **Escalabilidad independiente**: Backend y frontend escalan por separado
 - **Deploys independientes**: Cambios en uno no afectan al otro
 - **Builds más rápidos**: Solo compila el servicio modificado
@@ -66,7 +84,10 @@ git push origin frontend/production
 - **Costos optimizados**: Recursos asignados según necesidad
 
 ### 🎯 **Arquitectura**
+<<<<<<< HEAD
 
+=======
+>>>>>>> frontend/production
 ```
 Internet
     ↓
