@@ -1,8 +1,0 @@
-<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
-  <rect width="200" height="200" rx="8" fill="white" stroke="#CC9F53" stroke-width="1"/>
-  <circle cx="100" cy="70" r="30" fill="#CC9F53" opacity="0.2"/>
-  <rect x="40" y="120" width="120" height="6" rx="3" fill="#CC9F53" opacity="0.4"/>
-  <rect x="60" y="135" width="80" height="4" rx="2" fill="#CC9F53" opacity="0.3"/>
-  <rect x="70" y="150" width="60" height="4" rx="2" fill="#CC9F53" opacity="0.2"/>
-  <text x="100" y="180" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#CC9F53">DELA</text>
-</svg>

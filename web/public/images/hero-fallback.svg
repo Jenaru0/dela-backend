@@ -1,9 +1,0 @@
-<svg viewBox="0 0 600 600" xmlns="http://www.w3.org/2000/svg">
-  <rect width="600" height="600" fill="#F5EFD7"/>
-  <circle cx="300" cy="200" r="80" fill="#CC9F53" opacity="0.3"/>
-  <circle cx="250" cy="350" r="60" fill="#CC9F53" opacity="0.2"/>
-  <circle cx="350" cy="380" r="40" fill="#CC9F53" opacity="0.4"/>
-  <text x="300" y="300" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#CC9F53">DELA</text>
-  <text x="300" y="330" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" fill="#3A3A3A">Productos Artesanales</text>
-  <rect x="200" y="400" width="200" height="4" rx="2" fill="#CC9F53" opacity="0.6"/>
-</svg>
