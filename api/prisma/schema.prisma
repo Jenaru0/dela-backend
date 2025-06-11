@@ -1,0 +1,401 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Usuario {
+  id            Int                      @id @default(autoincrement())
+  nombres       String?                  @db.VarChar(100)
+  apellidos     String?                  @db.VarChar(100)
+  email         String                   @unique @db.VarChar(150)
+  celular       String?                  @db.VarChar(15)
+  creadoEn      DateTime                 @default(now())
+  actualizadoEn DateTime                 @updatedAt
+  activo        Boolean                  @default(true)
+  tipoUsuario   TipoUsuario              @default(CLIENTE)
+  
+  carrito            Carrito?
+  comentariosReclamo ComentarioReclamo[]
+  direcciones        DireccionCliente[]
+  favoritos          Favorito[]
+  pedidos            Pedido[]
+  reclamos           Reclamo[]
+  recuperaciones     RecuperacionContrasena[]
+  reviews            Resena[]
+  auth               AutenticacionUsuario?
+
+  @@map("usuario")
+}
+
+model AutenticacionUsuario {
+  usuarioId    Int       @id
+  contrasena   String
+  ultimoAcceso DateTime?
+  usuario      Usuario   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@map("autenticacion_usuario")
+}
+
+model RecuperacionContrasena {
+  id         Int      @id @default(autoincrement())
+  usuarioId  Int
+  token      String   @unique @db.VarChar(255)
+  creadoEn   DateTime @default(now())
+  expiracion DateTime
+  usado      Boolean  @default(false)
+  usuario    Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@map("recuperacion_contrasena")
+}
+
+model CategoriaProducto {
+  id          Int        @id @default(autoincrement())
+  nombre      String     @db.VarChar(100)
+  descripcion String?
+  slug        String     @unique @db.VarChar(100)
+  imagenUrl   String?    @db.VarChar(255)
+  activo      Boolean    @default(true)
+  creadoEn    DateTime   @default(now())
+  productos   Producto[]
+
+  @@map("categoria_producto")
+}
+
+model Producto {
+  id               Int               @id @default(autoincrement())
+  nombre           String            @db.VarChar(100)
+  sku              String            @unique @db.VarChar(50)
+  slug             String            @unique @db.VarChar(150)
+  descripcion      String?
+  descripcionCorta String?           @db.VarChar(255)
+  precioUnitario   Decimal           @db.Decimal(10, 2)
+  precioAnterior   Decimal?          @db.Decimal(10, 2)
+  stock            Int               @default(0)
+  unidadMedida     String?           @db.VarChar(20)
+  peso             Decimal?          @db.Decimal(8, 3)
+  infoNutricional  Json?
+  destacado        Boolean           @default(false)
+  categoriaId      Int
+  estado           EstadoProducto    @default(ACTIVO)
+  creadoEn         DateTime          @default(now())
+  actualizadoEn    DateTime          @updatedAt
+  
+  carritoItems   CarritoItem[]
+  detallePedidos DetallePedido[]
+  favoritos      Favorito[]
+  imagenes       ImagenProducto[]
+  categoria      CategoriaProducto @relation(fields: [categoriaId], references: [id])
+  reviews        Resena[]
+
+  @@index([categoriaId])
+  @@index([estado])
+  @@map("producto")
+}
+
+model ImagenProducto {
+  id         Int      @id @default(autoincrement())
+  productoId Int
+  url        String   @db.VarChar(500)
+  altText    String?  @db.VarChar(255)
+  principal  Boolean  @default(false)
+  orden      Int      @default(0)
+  creadoEn   DateTime @default(now())
+  producto   Producto @relation(fields: [productoId], references: [id], onDelete: Cascade)
+
+  @@index([productoId])
+  @@unique([productoId, orden])
+  @@map("imagen_producto")
+}
+
+model DireccionCliente {
+  id             Int      @id @default(autoincrement())
+  usuarioId      Int
+  alias          String?  @db.VarChar(50)
+  direccion      String
+  distrito       String?  @db.VarChar(100)
+  provincia      String?  @db.VarChar(100)
+  codigoPostal   String?  @db.VarChar(10)
+  referencia     String?
+  predeterminada Boolean  @default(false)
+  activa         Boolean  @default(true)
+  creadoEn       DateTime @default(now())
+  actualizadoEn  DateTime @updatedAt
+  
+  usuario Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  pedidos Pedido[]
+
+  @@index([usuarioId])
+  @@map("direccion_cliente")
+}
+
+model Favorito {
+  usuarioId  Int
+  productoId Int
+  creadoEn   DateTime @default(now())
+  
+  producto Producto @relation(fields: [productoId], references: [id], onDelete: Cascade)
+  usuario  Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@id([usuarioId, productoId])
+  @@map("favorito")
+}
+
+model Resena {
+  id           Int           @id @default(autoincrement())
+  usuarioId    Int
+  productoId   Int
+  calificacion Int           @db.SmallInt
+  comentario   String?
+  estado       EstadoResena  @default(PENDIENTE)
+  creadoEn     DateTime      @default(now())
+  actualizadoEn DateTime     @updatedAt
+  
+  producto Producto @relation(fields: [productoId], references: [id], onDelete: Cascade)
+  usuario  Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@unique([usuarioId, productoId])
+  @@index([productoId])
+  @@map("resena")
+}
+
+model Promocion {
+  id            Int           @id @default(autoincrement())
+  codigo        String        @unique @db.VarChar(50)
+  nombre        String        @db.VarChar(100)
+  descripcion   String?
+  tipo          TipoPromocion
+  valor         Decimal       @db.Decimal(10, 2)
+  montoMinimo   Decimal?      @db.Decimal(10, 2)
+  inicioValidez DateTime
+  finValidez    DateTime
+  usoMaximo     Int?
+  usoActual     Int           @default(0)
+  activo        Boolean       @default(true)
+  creadoEn      DateTime      @default(now())
+  actualizadoEn DateTime      @updatedAt
+
+  @@index([codigo])
+  @@index([activo, inicioValidez, finValidez])
+  @@map("promocion")
+}
+
+model Newsletter {
+  id       Int      @id @default(autoincrement())
+  email    String   @unique @db.VarChar(150)
+  activo   Boolean  @default(true)
+  creadoEn DateTime @default(now())
+
+  @@map("newsletter")
+}
+
+model Carrito {
+  id            Int           @id @default(autoincrement())
+  usuarioId     Int           @unique
+  creadoEn      DateTime      @default(now())
+  actualizadoEn DateTime      @updatedAt
+  
+  usuario Usuario       @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  items   CarritoItem[]
+
+  @@map("carrito")
+}
+
+model CarritoItem {
+  carritoId     Int
+  productoId    Int
+  cantidad      Int
+  creadoEn      DateTime @default(now())
+  actualizadoEn DateTime @updatedAt
+  
+  carrito  Carrito  @relation(fields: [carritoId], references: [id], onDelete: Cascade)
+  producto Producto @relation(fields: [productoId], references: [id], onDelete: Cascade)
+
+  @@id([carritoId, productoId])
+  @@map("carrito_item")
+}
+
+model Pedido {
+  id              Int              @id @default(autoincrement())
+  numero          String           @unique @db.VarChar(20) // PED-2024-000001
+  usuarioId       Int
+  direccionId     Int
+  subtotal        Decimal          @db.Decimal(10, 2)
+  impuestos       Decimal          @default(0.00) @db.Decimal(10, 2)
+  envioMonto      Decimal          @db.Decimal(10, 2)
+  descuentoMonto  Decimal          @default(0.00) @db.Decimal(10, 2)
+  total           Decimal          @db.Decimal(10, 2)
+  promocionCodigo String?          @db.VarChar(50)
+  estado          EstadoPedido     @default(PENDIENTE)
+  metodoPago      MetodoPago
+  metodoEnvio     MetodoEnvio
+  fechaPedido     DateTime         @default(now())
+  fechaEntrega    DateTime?
+  notasCliente    String?
+  notasInternas   String?
+  creadoEn        DateTime         @default(now())
+  actualizadoEn   DateTime         @updatedAt
+  
+  detallePedidos DetallePedido[]
+  pagos          Pago[]
+  direccion      DireccionCliente @relation(fields: [direccionId], references: [id])
+  usuario        Usuario          @relation(fields: [usuarioId], references: [id])
+  reclamos       Reclamo[]
+
+  @@index([usuarioId])
+  @@index([estado])
+  @@index([fechaPedido])
+  @@map("pedido")
+}
+
+model DetallePedido {
+  id             Int      @id @default(autoincrement())
+  pedidoId       Int
+  productoId     Int
+  cantidad       Int
+  precioUnitario Decimal  @db.Decimal(10, 2)
+  subtotal       Decimal  @db.Decimal(10, 2) // cantidad * precioUnitario
+  
+  pedido   Pedido   @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  producto Producto @relation(fields: [productoId], references: [id])
+
+  @@index([pedidoId])
+  @@index([productoId])
+  @@map("detalle_pedido")
+}
+
+model Pago {
+  id             Int         @id @default(autoincrement())
+  pedidoId       Int
+  metodoPago     MetodoPago
+  monto          Decimal     @db.Decimal(10, 2)
+  estado         EstadoPago  @default(PENDIENTE)
+  referencia     String?     @db.VarChar(255)
+  fechaPago      DateTime?
+  creadoEn       DateTime    @default(now())
+  
+  pedido Pedido @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+
+  @@index([pedidoId])
+  @@map("pago")
+}
+
+model Reclamo {
+  id            Int                 @id @default(autoincrement())
+  usuarioId     Int
+  pedidoId      Int?
+  asunto        String              @db.VarChar(150)
+  descripcion   String
+  estado        EstadoReclamo       @default(ABIERTO)
+  tipoReclamo   TipoReclamo         @default(OTRO)
+  prioridad     PrioridadReclamo    @default(MEDIA)
+  fechaCierre   DateTime?
+  creadoEn      DateTime            @default(now())
+  actualizadoEn DateTime            @updatedAt
+  
+  comentarios ComentarioReclamo[]
+  pedido      Pedido?             @relation(fields: [pedidoId], references: [id])
+  usuario     Usuario             @relation(fields: [usuarioId], references: [id])
+
+  @@index([usuarioId])
+  @@index([estado])
+  @@map("reclamo")
+}
+
+model ComentarioReclamo {
+  id         Int      @id @default(autoincrement())
+  reclamoId  Int
+  comentario String
+  usuarioId  Int
+  esInterno  Boolean  @default(false) // Comentarios internos del staff
+  creadoEn   DateTime @default(now())
+  
+  reclamo Reclamo @relation(fields: [reclamoId], references: [id], onDelete: Cascade)
+  usuario Usuario @relation(fields: [usuarioId], references: [id])
+
+  @@index([reclamoId])
+  @@map("comentario_reclamo")
+}
+
+enum TipoUsuario {
+  CLIENTE
+  ADMIN
+}
+
+enum EstadoProducto {
+  ACTIVO
+  INACTIVO
+  AGOTADO
+}
+
+enum EstadoPedido {
+  PENDIENTE
+  CONFIRMADO
+  PROCESANDO
+  ENVIADO
+  ENTREGADO
+  CANCELADO
+}
+
+enum EstadoReclamo {
+  ABIERTO
+  EN_PROCESO
+  RESUELTO
+  RECHAZADO
+}
+
+enum EstadoResena {
+  PENDIENTE
+  APROBADO
+  RECHAZADO
+}
+
+enum EstadoPago {
+  PENDIENTE
+  PROCESANDO
+  COMPLETADO
+  FALLIDO
+  CANCELADO
+  REEMBOLSADO
+}
+
+enum MetodoPago {
+  TARJETA_CREDITO
+  TARJETA_DEBITO
+  TRANSFERENCIA
+  EFECTIVO
+  YAPE
+  PLIN
+}
+
+enum MetodoEnvio {
+  DELIVERY
+  RECOJO_TIENDA
+}
+
+enum TipoReclamo {
+  DEMORA_ENTREGA
+  PRODUCTO_DEFECTUOSO
+  PEDIDO_INCOMPLETO
+  COBRO_INCORRECTO
+  SOLICITUD_CANCELACION
+  SERVICIO_CLIENTE
+  OTRO
+}
+
+enum PrioridadReclamo {
+  BAJA
+  MEDIA
+  ALTA
+  CRITICA
+}
+
+enum TipoPromocion {
+  PORCENTAJE
+  MONTO_FIJO
+  ENVIO_GRATIS
+  PRODUCTO_GRATIS
+}
