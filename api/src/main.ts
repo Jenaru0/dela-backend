@@ -12,7 +12,11 @@ async function bootstrap(): Promise<void> {
 
   // Habilitar CORS para permitir conexiones desde el frontend
   app.enableCors({
-    origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
+    origin: [
+      'http://localhost:3000', 
+      'http://127.0.0.1:3000',
+      process.env.FRONTEND_URL || 'https://your-frontend-domain.com'
+    ],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
     credentials: true,
   });
@@ -23,8 +27,12 @@ async function bootstrap(): Promise<void> {
       forbidNonWhitelisted: true,
       transform: true,
       transformOptions: { enableImplicitConversion: true },
-    }),  );  const port = process.env.PORT ?? 3001;
+    }),
+  );
+
+  const port = process.env.PORT ?? 3001;
   await app.listen(port);
+  console.log(`🚀 API running on port ${port}`);
 }
 
 bootstrap().catch((error) => {
