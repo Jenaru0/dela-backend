@@ -8,12 +8,19 @@ async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule, {
     logger: ['error', 'warn', 'log'],
   });
-
   // Habilitar CORS para permitir conexiones desde el frontend
+  const allowedOrigins = [
+    'http://localhost:3000', 
+    'http://127.0.0.1:3000',
+    'https://dela.episundc.pe', // Dominio de producción
+    process.env.FRONTEND_URL, // Variable de entorno para flexibilidad
+  ].filter(Boolean); // Filtrar valores undefined
+
   app.enableCors({
-    origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+    origin: allowedOrigins,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
   });
 
   app.useGlobalPipes(
