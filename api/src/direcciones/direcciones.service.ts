@@ -6,6 +6,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateDireccionDto } from './dto/create-direccion.dto';
 import { UpdateDireccionDto } from './dto/update-direccion.dto';
+import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class DireccionesService {
@@ -147,9 +148,6 @@ export class DireccionesService {
   // Método para admin: obtener todas las direcciones de todos los usuarios
   async findAllForAdmin() {
     return await this.prisma.direccionCliente.findMany({
-      where: {
-        activa: true,
-      },
       include: {
         usuario: {
           select: {
@@ -160,8 +158,102 @@ export class DireccionesService {
           },
         },
       },
-      orderBy: [{ creadoEn: 'desc' }],
+      orderBy: [{ id: 'asc' }], // Ordenamiento ascendente por ID
     });
+  }
+
+  // Método para admin: obtener direcciones con paginación
+  async findAllForAdminWithPagination(
+    page: number,
+    limit: number,
+    filters: { search?: string } = {},
+  ) {
+    const skip = (page - 1) * limit;
+    const { search } = filters;
+
+    // Construir condiciones de búsqueda
+    const whereConditions: Prisma.DireccionClienteWhereInput = {};
+
+    if (search) {
+      whereConditions.OR = [
+        {
+          direccion: {
+            contains: search,
+            mode: 'insensitive',
+          },
+        },
+        {
+          distrito: {
+            contains: search,
+            mode: 'insensitive',
+          },
+        },
+        {
+          provincia: {
+            contains: search,
+            mode: 'insensitive',
+          },
+        },
+        {
+          alias: {
+            contains: search,
+            mode: 'insensitive',
+          },
+        },
+        {
+          usuario: {
+            OR: [
+              {
+                nombres: {
+                  contains: search,
+                  mode: 'insensitive',
+                },
+              },
+              {
+                apellidos: {
+                  contains: search,
+                  mode: 'insensitive',
+                },
+              },
+              {
+                email: {
+                  contains: search,
+                  mode: 'insensitive',
+                },
+              },
+            ],
+          },
+        },
+      ];
+    }
+
+    // Obtener direcciones paginadas
+    const direcciones = await this.prisma.direccionCliente.findMany({
+      where: whereConditions,
+      include: {
+        usuario: {
+          select: {
+            id: true,
+            nombres: true,
+            apellidos: true,
+            email: true,
+          },
+        },
+      },
+      orderBy: [{ id: 'asc' }], // Ordenamiento ascendente por ID
+      skip,
+      take: limit,
+    });
+
+    // Contar total de direcciones
+    const total = await this.prisma.direccionCliente.count({
+      where: whereConditions,
+    });
+
+    return {
+      data: direcciones,
+      total,
+    };
   }
 
   // Método para admin: obtener estadísticas de direcciones

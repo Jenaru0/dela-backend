@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCategoriaDto } from './dto/create-categoria.dto';
 import { UpdateCategoriaDto } from './dto/update-categoria.dto';
+import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class CategoriaService {
@@ -22,6 +23,47 @@ export class CategoriaService {
       },
       orderBy: { nombre: 'asc' },
     });
+  }
+
+  async findAllForAdminWithPagination(
+    page: number = 1,
+    limit: number = 10,
+    search?: string,
+  ) {
+    const skip = (page - 1) * limit;
+
+    const where: Prisma.CategoriaProductoWhereInput = {};
+
+    if (search) {
+      where.OR = [
+        { nombre: { contains: search, mode: 'insensitive' } },
+        { descripcion: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    const [categorias, total] = await Promise.all([
+      this.prisma.categoriaProducto.findMany({
+        where,
+        include: {
+          _count: {
+            select: {
+              productos: true,
+            },
+          },
+        },
+        orderBy: { id: 'asc' },
+        skip,
+        take: limit,
+      }),
+      this.prisma.categoriaProducto.count({ where }),
+    ]);
+
+    return {
+      data: categorias,
+      total,
+      page,
+      totalPages: Math.ceil(total / limit),
+    };
   }
 
   async findOne(id: number) {

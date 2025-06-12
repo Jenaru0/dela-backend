@@ -13,6 +13,45 @@ import { EstadoPedido, Prisma } from '@prisma/client';
 export class PedidosService {
   constructor(private readonly prisma: PrismaService) {}
 
+  // Helper para convertir Decimals a numbers
+
+  private convertDecimalFields(pedido: any) {
+    return {
+      ...pedido,
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+      subtotal: parseFloat(pedido.subtotal?.toString() || '0'),
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+      impuestos: parseFloat(pedido.impuestos?.toString() || '0'),
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+      costoEnvio: parseFloat(pedido.envioMonto?.toString() || '0'), // Mapear envioMonto a costoEnvio
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+      descuento: parseFloat(pedido.descuentoMonto?.toString() || '0'), // Mapear descuentoMonto a descuento
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+      total: parseFloat(pedido.total?.toString() || '0'),
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      detallePedidos:
+        pedido.detallePedidos?.map((detalle: any) => ({
+          ...detalle,
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+          precio: parseFloat(detalle.precioUnitario?.toString() || '0'), // Mapear precioUnitario a precio
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+          subtotal: parseFloat(detalle.subtotal?.toString() || '0'),
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+          producto: {
+            ...detalle.producto,
+            // Mapear la imagen principal si existe
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+            imagen: detalle.producto?.imagenes?.[0]?.url || null,
+
+            precio: parseFloat(
+              // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+              detalle.producto?.precioUnitario?.toString() || '0',
+            ),
+          },
+        })) || [],
+    };
+  }
+
   async create(dto: CreatePedidoDto) {
     const usuario = await this.prisma.usuario.findUnique({
       where: { id: dto.usuarioId },
@@ -173,7 +212,16 @@ export class PedidosService {
           detallePedidos: {
             include: {
               producto: {
-                select: { id: true, nombre: true, sku: true },
+                select: {
+                  id: true,
+                  nombre: true,
+                  sku: true,
+                  precioUnitario: true,
+                  imagenes: {
+                    where: { principal: true },
+                    select: { url: true, altText: true },
+                  },
+                },
               },
             },
           },
@@ -190,6 +238,126 @@ export class PedidosService {
       page,
       limit,
       total,
+    };
+  }
+
+  async findAllForAdminWithPagination(
+    page: number = 1,
+    limit: number = 10,
+    search?: string,
+    estado?: EstadoPedido,
+    fechaInicio?: string,
+    fechaFin?: string,
+  ) {
+    const skip = (page - 1) * limit;
+
+    const where: Prisma.PedidoWhereInput = {};
+
+    if (search) {
+      where.OR = [
+        { numero: { contains: search, mode: 'insensitive' } },
+        { usuario: { nombres: { contains: search, mode: 'insensitive' } } },
+        { usuario: { apellidos: { contains: search, mode: 'insensitive' } } },
+        { usuario: { email: { contains: search, mode: 'insensitive' } } },
+      ];
+    }
+
+    if (estado) {
+      where.estado = estado;
+    }
+
+    if (fechaInicio || fechaFin) {
+      where.fechaPedido = {};
+      if (fechaInicio) {
+        where.fechaPedido.gte = new Date(fechaInicio);
+      }
+      if (fechaFin) {
+        where.fechaPedido.lte = new Date(fechaFin);
+      }
+    }
+
+    const [pedidos, total] = await Promise.all([
+      this.prisma.pedido.findMany({
+        where,
+        include: {
+          usuario: {
+            select: {
+              id: true,
+              nombres: true,
+              apellidos: true,
+              email: true,
+              celular: true,
+            },
+          },
+          direccion: true,
+          detallePedidos: {
+            include: {
+              producto: {
+                select: {
+                  id: true,
+                  nombre: true,
+                  sku: true,
+                  imagenes: {
+                    where: { principal: true },
+                    select: { url: true, altText: true },
+                  },
+                },
+              },
+            },
+          },
+          pagos: true,
+        },
+        orderBy: { id: 'asc' },
+        skip,
+        take: limit,
+      }),
+      this.prisma.pedido.count({ where }),
+    ]);
+
+    return {
+      data: pedidos.map((pedido) => this.convertDecimalFields(pedido)),
+      total,
+      page,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
+  // Obtener todas las órdenes para admin (sin paginación, para estadísticas)
+  async findAllForAdmin() {
+    const pedidos = await this.prisma.pedido.findMany({
+      include: {
+        usuario: {
+          select: {
+            id: true,
+            nombres: true,
+            apellidos: true,
+            email: true,
+            celular: true,
+          },
+        },
+        direccion: true,
+        detallePedidos: {
+          include: {
+            producto: {
+              select: {
+                id: true,
+                nombre: true,
+                sku: true,
+                imagenes: {
+                  where: { principal: true },
+                  select: { url: true, altText: true },
+                },
+              },
+            },
+          },
+        },
+        pagos: true,
+      },
+      orderBy: { fechaPedido: 'desc' },
+    });
+
+    return {
+      data: pedidos.map((pedido) => this.convertDecimalFields(pedido)),
     };
   }
 
@@ -210,9 +378,14 @@ export class PedidosService {
         detallePedidos: {
           include: {
             producto: {
-              include: {
+              select: {
+                id: true,
+                nombre: true,
+                sku: true,
+                precioUnitario: true,
                 imagenes: {
                   where: { principal: true },
+                  select: { url: true, altText: true },
                 },
               },
             },
@@ -226,7 +399,7 @@ export class PedidosService {
       throw new NotFoundException('Pedido no encontrado');
     }
 
-    return pedido;
+    return this.convertDecimalFields(pedido);
   }
 
   async update(id: number, dto: UpdatePedidoDto) {
@@ -269,7 +442,43 @@ export class PedidosService {
     });
   }
 
-  async cambiarEstado(id: number, estado: EstadoPedido) {
-    return this.update(id, { estado });
+  async cambiarEstado(
+    id: number,
+    estado: EstadoPedido,
+    notasInternas?: string,
+  ) {
+    const updateData: UpdatePedidoDto = { estado };
+
+    // Si se proporcionan notas internas, incluirlas en la actualización
+    if (notasInternas !== undefined) {
+      updateData.notasInternas = notasInternas;
+    }
+
+    return this.update(id, updateData);
+  }
+
+  async findByUser(usuarioId: number): Promise<any[]> {
+    const pedidos = await this.prisma.pedido.findMany({
+      where: {
+        usuarioId: usuarioId,
+      },
+      include: {
+        detallePedidos: {
+          include: {
+            producto: {
+              include: {
+                imagenes: true,
+              },
+            },
+          },
+        },
+        direccion: true,
+      },
+      orderBy: {
+        creadoEn: 'desc',
+      },
+    });
+
+    return pedidos.map((pedido) => this.convertDecimalFields(pedido));
   }
 }

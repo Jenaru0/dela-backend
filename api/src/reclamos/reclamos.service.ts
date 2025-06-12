@@ -77,10 +77,96 @@ export class ReclamosService {
     });
   }
 
-  async findAll(page: number = 1, limit: number = 10, estado?: EstadoReclamo) {
+  async findAll(
+    page: number = 1,
+    limit: number = 10,
+    estado?: string,
+    prioridad?: string,
+    tipoReclamo?: string,
+    search?: string,
+    fechaInicio?: string,
+    fechaFin?: string,
+  ) {
     const skip = (page - 1) * limit;
 
-    const where = estado ? { estado } : {};
+    // Construir el objeto where dinámicamente
+    const where: {
+      estado?: EstadoReclamo;
+      prioridad?: PrioridadReclamo;
+      tipoReclamo?: TipoReclamo;
+      creadoEn?: {
+        gte?: Date;
+        lte?: Date;
+      };
+      OR?: Array<{
+        asunto?: { contains: string; mode: 'insensitive' };
+        descripcion?: { contains: string; mode: 'insensitive' };
+        usuario?: {
+          OR: Array<{
+            nombres?: { contains: string; mode: 'insensitive' };
+            apellidos?: { contains: string; mode: 'insensitive' };
+            email?: { contains: string; mode: 'insensitive' };
+          }>;
+        };
+      }>;
+    } = {};
+
+    // Filtro por estado (convertir string a enum)
+    if (
+      estado &&
+      Object.values(EstadoReclamo).includes(estado as EstadoReclamo)
+    ) {
+      where.estado = estado as EstadoReclamo;
+    }
+
+    // Filtro por prioridad (convertir string a enum)
+    if (
+      prioridad &&
+      Object.values(PrioridadReclamo).includes(prioridad as PrioridadReclamo)
+    ) {
+      where.prioridad = prioridad as PrioridadReclamo;
+    }
+
+    // Filtro por tipo de reclamo (convertir string a enum)
+    if (
+      tipoReclamo &&
+      Object.values(TipoReclamo).includes(tipoReclamo as TipoReclamo)
+    ) {
+      where.tipoReclamo = tipoReclamo as TipoReclamo;
+    }
+
+    // Filtro por búsqueda (asunto, descripción, usuario)
+    if (search) {
+      where.OR = [
+        { asunto: { contains: search, mode: 'insensitive' } },
+        { descripcion: { contains: search, mode: 'insensitive' } },
+        {
+          usuario: {
+            OR: [
+              { nombres: { contains: search, mode: 'insensitive' } },
+              { apellidos: { contains: search, mode: 'insensitive' } },
+              { email: { contains: search, mode: 'insensitive' } },
+            ],
+          },
+        },
+      ];
+    }
+
+    // Filtros por fecha
+    if (fechaInicio || fechaFin) {
+      where.creadoEn = {};
+
+      if (fechaInicio) {
+        where.creadoEn.gte = new Date(fechaInicio);
+      }
+
+      if (fechaFin) {
+        // Agregar 23:59:59 para incluir todo el día
+        const fechaFinDate = new Date(fechaFin);
+        fechaFinDate.setHours(23, 59, 59, 999);
+        where.creadoEn.lte = fechaFinDate;
+      }
+    }
 
     const [reclamos, total] = await Promise.all([
       this.prisma.reclamo.findMany({
@@ -182,8 +268,6 @@ export class ReclamosService {
     const [reclamos, total] = await Promise.all([
       this.prisma.reclamo.findMany({
         where: { usuarioId },
-        skip,
-        take: limit,
         include: {
           pedido: {
             select: {
@@ -191,21 +275,17 @@ export class ReclamosService {
               numero: true,
             },
           },
-          _count: {
-            select: {
-              comentarios: true,
-            },
-          },
         },
-        orderBy: {
-          creadoEn: 'desc',
-        },
+        orderBy: { creadoEn: 'desc' },
+        skip,
+        take: limit,
       }),
       this.prisma.reclamo.count({ where: { usuarioId } }),
     ]);
 
     return {
-      reclamos,
+      mensaje: 'Reclamos obtenidos correctamente',
+      data: reclamos,
       total,
       page,
       totalPages: Math.ceil(total / limit),

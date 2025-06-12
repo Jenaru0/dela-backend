@@ -122,6 +122,36 @@ export class ResenasService {
     };
   }
 
+  async findByUser(usuarioId: number, page: number = 1, limit: number = 10) {
+    const skip = (page - 1) * limit;
+
+    const [resenas, total] = await Promise.all([
+      this.prisma.resena.findMany({
+        where: { usuarioId },
+        include: {
+          producto: {
+            select: {
+              id: true,
+              nombre: true,
+            },
+          },
+        },
+        orderBy: { creadoEn: 'desc' },
+        skip,
+        take: limit,
+      }),
+      this.prisma.resena.count({ where: { usuarioId } }),
+    ]);
+
+    return {
+      mensaje: 'Reseñas obtenidas correctamente',
+      data: resenas,
+      total,
+      page,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
   async findByProduct(
     productoId: number,
     page: number = 1,
@@ -174,45 +204,6 @@ export class ResenasService {
       page,
       totalPages: Math.ceil(total / limit),
       promedioCalificacion: promedio._avg.calificacion || 0,
-    };
-  }
-
-  async findByUser(usuarioId: number, page: number = 1, limit: number = 10) {
-    const skip = (page - 1) * limit;
-
-    const [resenas, total] = await Promise.all([
-      this.prisma.resena.findMany({
-        where: { usuarioId },
-        skip,
-        take: limit,
-        include: {
-          producto: {
-            select: {
-              id: true,
-              nombre: true,
-              slug: true,
-              imagenes: {
-                where: { principal: true },
-                select: {
-                  url: true,
-                  altText: true,
-                },
-              },
-            },
-          },
-        },
-        orderBy: {
-          creadoEn: 'desc',
-        },
-      }),
-      this.prisma.resena.count({ where: { usuarioId } }),
-    ]);
-
-    return {
-      resenas,
-      total,
-      page,
-      totalPages: Math.ceil(total / limit),
     };
   }
 

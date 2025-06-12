@@ -8,6 +8,7 @@ import { CreateUsuarioDto } from './dto/create-usuario.dto';
 import { UpdateUsuarioDto } from './dto/update-usuario.dto';
 import { ActualizarPerfilDto } from './dto/actualizar-perfil.dto';
 import type { Usuario } from '@prisma/client';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class UsuariosService {
@@ -21,7 +22,36 @@ export class UsuariosService {
     // Si existe y está activo, lanza error
     if (existe && existe.activo === true)
       throw new ConflictException('El correo ya está registrado.');
-    return this.prisma.usuario.create({ data: dto });
+
+    // Hashear la contraseña
+    const hashedPassword = await bcrypt.hash(dto.contrasena, 10);
+
+    // Separar la contraseña del resto de datos
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { contrasena: _, ...userData } = dto;
+
+    // Crear usuario con autenticación
+    return this.prisma.usuario.create({
+      data: {
+        ...userData,
+        auth: {
+          create: {
+            contrasena: hashedPassword,
+          },
+        },
+      },
+      select: {
+        id: true,
+        email: true,
+        nombres: true,
+        apellidos: true,
+        celular: true,
+        tipoUsuario: true,
+        activo: true,
+        creadoEn: true,
+        actualizadoEn: true,
+      },
+    });
   }
 
   findAll(includeInactive = false) {
@@ -74,7 +104,10 @@ export class UsuariosService {
     const usuario = await this.prisma.usuario.findUnique({
       where: { id },
     });
-    if (!usuario) throw new NotFoundException('Usuario no encontrado');
+
+    if (!usuario) {
+      throw new NotFoundException('Usuario no encontrado.');
+    }
 
     return this.prisma.usuario.update({
       where: { id },
@@ -83,11 +116,34 @@ export class UsuariosService {
   }
 
   // Nuevo método: desactivar usuario
-  async deactivateUser(id: number) {
+  async deactivateUser(id: number): Promise<Usuario> {
     const usuario = await this.prisma.usuario.findUnique({
       where: { id },
     });
-    if (!usuario) throw new NotFoundException('Usuario no encontrado');
+
+    if (!usuario) {
+      throw new NotFoundException('Usuario no encontrado.');
+    }
+
+    return this.prisma.usuario.update({
+      where: { id },
+      data: { activo: false },
+    });
+  }
+
+  // Método para que un usuario desactive su propia cuenta
+  async deactivateOwnAccount(id: number): Promise<Usuario> {
+    const usuario = await this.prisma.usuario.findUnique({
+      where: { id },
+    });
+
+    if (!usuario) {
+      throw new NotFoundException('Usuario no encontrado.');
+    }
+
+    if (!usuario.activo) {
+      throw new ConflictException('La cuenta ya está desactivada.');
+    }
 
     return this.prisma.usuario.update({
       where: { id },
@@ -142,5 +198,41 @@ export class UsuariosService {
       where: { id },
       data: { activo: false },
     });
+  }
+  // Método de paginación para admin (igual que productos)
+  async findAllWithPagination(
+    page: number = 1,
+    limit: number = 10,
+    filters: { search?: string } = {},
+  ) {
+    const skip = (page - 1) * limit;
+
+    // Construir condiciones de búsqueda
+    const where: { OR?: any[] } = {};
+
+    if (filters.search) {
+      where.OR = [
+        { email: { contains: filters.search, mode: 'insensitive' } },
+        { nombres: { contains: filters.search, mode: 'insensitive' } },
+        { apellidos: { contains: filters.search, mode: 'insensitive' } },
+      ];
+    }
+
+    const [usuarios, total] = await Promise.all([
+      this.prisma.usuario.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { id: 'asc' }, // Orden ascendente por ID igual que productos
+      }),
+      this.prisma.usuario.count({ where }),
+    ]);
+
+    return {
+      data: usuarios,
+      total,
+      page,
+      totalPages: Math.ceil(total / limit),
+    };
   }
 }

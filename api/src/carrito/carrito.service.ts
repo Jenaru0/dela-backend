@@ -1,4 +1,3 @@
-/* eslint-disable prettier/prettier */
 import {
   Injectable,
   NotFoundException,
@@ -65,7 +64,7 @@ export class CarritoService {
     if (existingItem) {
       // Update quantity
       const newQuantity = existingItem.cantidad + dto.cantidad;
-      
+
       if (producto.stock < newQuantity) {
         throw new BadRequestException('Stock insuficiente');
       }
@@ -107,7 +106,11 @@ export class CarritoService {
     }
   }
 
-  async updateCartItem(usuarioId: number, productoId: number, dto: UpdateCartItemDto) {
+  async updateCartItem(
+    usuarioId: number,
+    productoId: number,
+    dto: UpdateCartItemDto,
+  ) {
     const carrito = await this.ensureCartExists(usuarioId);
 
     // Verify product exists

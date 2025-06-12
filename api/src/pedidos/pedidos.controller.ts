@@ -15,6 +15,7 @@ import { PedidosService } from './pedidos.service';
 import { CreatePedidoDto } from './dto/crear-pedido.dto';
 import { UpdatePedidoDto } from './dto/update-pedido.dto';
 import { FiltrosPedidosDto } from './dto/filtros-pedidos.dto';
+import { CambiarEstadoDto } from './dto/cambiar-estado.dto';
 import { JwtAutenticacionGuard } from '../autenticacion/guards/jwt-autenticacion.guard';
 import { EstadoPedido } from '@prisma/client';
 
@@ -43,6 +44,56 @@ export class PedidosController {
     return this.pedidosService.create(dto);
   }
 
+  @Get('mis-pedidos')
+  async findMyOrders(@Request() req: AuthenticatedRequest) {
+    const pedidos: any[] = await this.pedidosService.findByUser(req.user.id);
+    return {
+      mensaje: 'Pedidos obtenidos correctamente',
+      data: pedidos,
+    };
+  }
+
+  // Endpoints específicos deben ir ANTES que los endpoints con parámetros dinámicos
+  @Get('admin/paginacion')
+  async findAllForAdminWithPagination(
+    @Request() req: AuthenticatedRequest,
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '10',
+    @Query('search') search?: string,
+    @Query('estado') estado?: EstadoPedido,
+    @Query('fechaInicio') fechaInicio?: string,
+    @Query('fechaFin') fechaFin?: string,
+  ) {
+    if (req.user.tipoUsuario !== 'ADMIN') {
+      throw new ForbiddenException(
+        'Solo administradores pueden acceder a esta información.',
+      );
+    }
+
+    const pageNum = parseInt(page, 10);
+    const limitNum = parseInt(limit, 10);
+
+    return this.pedidosService.findAllForAdminWithPagination(
+      pageNum,
+      limitNum,
+      search,
+      estado,
+      fechaInicio,
+      fechaFin,
+    );
+  }
+
+  @Get('admin/todos')
+  async findAllForAdmin(@Request() req: AuthenticatedRequest) {
+    if (req.user.tipoUsuario !== 'ADMIN') {
+      throw new ForbiddenException(
+        'Solo administradores pueden acceder a esta información.',
+      );
+    }
+
+    return this.pedidosService.findAllForAdmin();
+  }
+
   @Get()
   async findAll(
     @Query() filtros: FiltrosPedidosDto,
@@ -56,16 +107,12 @@ export class PedidosController {
     return this.pedidosService.findAll(filtros);
   }
 
-  @Get('mis-pedidos')
-  async misPedidos(@Request() req: AuthenticatedRequest) {
-    return this.pedidosService.findByUsuario(req.user.id);
-  }
-
   @Get(':id')
   async findOne(
     @Param('id', ParseIntPipe) id: number,
     @Request() req: AuthenticatedRequest,
   ) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const pedido = await this.pedidosService.findOne(id);
 
     // Solo el dueño del pedido o un admin pueden verlo
@@ -95,7 +142,7 @@ export class PedidosController {
   @Patch(':id/estado')
   async cambiarEstado(
     @Param('id', ParseIntPipe) id: number,
-    @Body('estado') estado: EstadoPedido,
+    @Body() dto: CambiarEstadoDto,
     @Request() req: AuthenticatedRequest,
   ) {
     // Solo admin puede cambiar estado
@@ -105,6 +152,6 @@ export class PedidosController {
       );
     }
 
-    return this.pedidosService.cambiarEstado(id, estado);
+    return this.pedidosService.cambiarEstado(id, dto.estado, dto.notasInternas);
   }
 }

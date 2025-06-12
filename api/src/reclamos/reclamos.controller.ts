@@ -51,8 +51,22 @@ export class ReclamosController {
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
     @Query('estado') estado?: EstadoReclamo,
+    @Query('prioridad') prioridad?: string,
+    @Query('tipoReclamo') tipoReclamo?: string,
+    @Query('search') search?: string,
+    @Query('fechaInicio') fechaInicio?: string,
+    @Query('fechaFin') fechaFin?: string,
   ) {
-    return this.reclamosService.findAll(page, limit, estado);
+    return this.reclamosService.findAll(
+      page,
+      limit,
+      estado,
+      prioridad,
+      tipoReclamo,
+      search,
+      fechaInicio,
+      fechaFin,
+    );
   }
 
   @Get('admin/estadisticas')

@@ -9,6 +9,9 @@ import {
   UseGuards,
   Request,
   ForbiddenException,
+  Query,
+  ParseIntPipe,
+  DefaultValuePipe,
 } from '@nestjs/common';
 import { UsuariosService } from './usuarios.service';
 import { CreateUsuarioDto } from './dto/create-usuario.dto';
@@ -40,28 +43,41 @@ export class UsuariosController {
       data: usuario,
     };
   }
-
   @Get()
   @UseGuards(JwtAutenticacionGuard)
-  async findAll(@Request() req: PeticionAutenticada) {
+  async findAll(
+    @Request() req: PeticionAutenticada,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+    @Query('search') search?: string,
+  ) {
     // Solo admin puede listar todos
     if (req.user.tipoUsuario !== 'ADMIN') {
       throw new ForbiddenException(
         'Solo administradores pueden listar todos los usuarios.',
       );
     }
-    // Admin puede ver todos los usuarios (incluyendo inactivos)
-    const usuarios = await this.usuariosService.findAll(true);
+
+    // Usar paginación igual que productos
+    const result = await this.usuariosService.findAllWithPagination(
+      page,
+      limit,
+      { search },
+    );
+
     return {
       mensaje: 'Lista de usuarios obtenida correctamente.',
-      data: usuarios,
+      data: result.data,
+      total: result.total,
+      page: result.page,
+      totalPages: result.totalPages,
     };
   }
 
   @Get('me')
   @UseGuards(JwtAutenticacionGuard)
   async getProfile(@Request() req: PeticionAutenticada) {
-    const usuario = await this.usuariosService.findOne(Number(req.user.sub));
+    const usuario = await this.usuariosService.findOne(Number(req.user.id));
     return {
       mensaje: 'Perfil obtenido correctamente.',
       data: usuario,
@@ -75,7 +91,7 @@ export class UsuariosController {
     @Request() req: PeticionAutenticada,
   ) {
     const usuario = await this.usuariosService.actualizarPerfil(
-      Number(req.user.sub),
+      Number(req.user.id),
       dto,
     );
     return {
@@ -86,10 +102,16 @@ export class UsuariosController {
 
   @Patch('me/desactivar')
   @UseGuards(JwtAutenticacionGuard)
-  async deactivateAccount(@Request() req: PeticionAutenticada) {
-    await this.usuariosService.deactivateAccount(Number(req.user.sub));
+  async deactivateOwnAccount(@Request() req: PeticionAutenticada) {
+    const userId = req.user.id;
+    if (!userId) {
+      throw new ForbiddenException('Usuario no válido.');
+    }
+
+    const usuario = await this.usuariosService.deactivateOwnAccount(userId);
     return {
       mensaje: 'Cuenta desactivada correctamente.',
+      data: usuario,
     };
   }
 
@@ -105,7 +127,7 @@ export class UsuariosController {
       // Usuario normal solo puede ver usuarios activos
       usuario = await this.usuariosService.findOne(+id);
       // Solo el propio usuario puede ver su perfil
-      if (req.user.sub !== usuario?.id) {
+      if (req.user.id !== usuario?.id) {
         throw new ForbiddenException(
           'No tienes permisos para ver este usuario.',
         );
@@ -135,7 +157,7 @@ export class UsuariosController {
       );
     } else {
       // Usuario normal solo puede editarse a sí mismo
-      if (req.user.sub !== +id) {
+      if (req.user.id !== +id) {
         throw new ForbiddenException(
           'No tienes permisos para editar este usuario.',
         );
@@ -193,7 +215,7 @@ export class UsuariosController {
   @UseGuards(JwtAutenticacionGuard)
   async remove(@Param('id') id: string, @Request() req: PeticionAutenticada) {
     // Solo admin o el propio usuario puede eliminar
-    if (req.user.tipoUsuario !== 'ADMIN' && req.user.sub !== +id) {
+    if (req.user.tipoUsuario !== 'ADMIN' && req.user.id !== +id) {
       throw new ForbiddenException(
         'No tienes permisos para eliminar este usuario.',
       );

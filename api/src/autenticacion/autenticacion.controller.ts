@@ -33,7 +33,7 @@ export class AutenticacionController {
     @Request() req: any,
   ) {
     return this.autenticacionService.cambiarContrasena(
-      Number(req.user.sub),
+      Number(req.user.id),
       dto,
     );
   }

@@ -10,6 +10,7 @@ import {
   Request,
   ParseIntPipe,
   ForbiddenException,
+  Query,
 } from '@nestjs/common';
 import { DireccionesService } from './direcciones.service';
 import { CreateDireccionDto } from './dto/create-direccion.dto';
@@ -121,6 +122,38 @@ export class DireccionesController {
     return {
       mensaje: 'Direcciones obtenidas correctamente.',
       data: direcciones,
+    };
+  }
+
+  @Get('admin/paginacion')
+  async findAllForAdminWithPagination(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('search') search?: string,
+    @Request() req?: PeticionAutenticada,
+  ) {
+    // Solo admin puede acceder
+    if (req?.user.tipoUsuario !== 'ADMIN') {
+      throw new ForbiddenException(
+        'Solo administradores pueden acceder a todas las direcciones.',
+      );
+    }
+
+    const pageNumber = parseInt(page || '1', 10) || 1;
+    const limitNumber = parseInt(limit || '10', 10) || 10;
+
+    const result = await this.direccionesService.findAllForAdminWithPagination(
+      pageNumber,
+      limitNumber,
+      { search },
+    );
+
+    return {
+      mensaje: 'Direcciones obtenidas correctamente.',
+      data: result.data,
+      total: result.total,
+      page: pageNumber,
+      totalPages: Math.ceil(result.total / limitNumber),
     };
   }
 

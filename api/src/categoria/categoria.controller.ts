@@ -41,6 +41,30 @@ export class CategoriaController {
     return this.categoriaService.findAll();
   }
 
+  @Get('admin/paginacion')
+  @UseGuards(JwtAutenticacionGuard)
+  async findAllForAdminWithPagination(
+    @Request() req,
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '10',
+    @Query('search') search?: string,
+  ) {
+    if (req.user.tipoUsuario !== 'ADMIN') {
+      throw new ForbiddenException(
+        'Solo administradores pueden acceder a esta información.',
+      );
+    }
+
+    const pageNum = parseInt(page, 10);
+    const limitNum = parseInt(limit, 10);
+
+    return this.categoriaService.findAllForAdminWithPagination(
+      pageNum,
+      limitNum,
+      search,
+    );
+  }
+
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.categoriaService.findOne(id);
