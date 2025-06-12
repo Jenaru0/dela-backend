@@ -13,9 +13,10 @@ async function bootstrap(): Promise<void> {
   // Habilitar CORS para permitir conexiones desde el frontend
   app.enableCors({
     origin: [
-      'http://localhost:3000', 
+      'http://localhost:3000',
       'http://127.0.0.1:3000',
-      process.env.FRONTEND_URL || 'https://your-frontend-domain.com'
+      process.env.FRONTEND_URL || 'https://your-frontend-domain.com',
+      'https://delabackend.episundc.pe', // Para pruebas del backend
     ],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
     credentials: true,
@@ -31,7 +32,7 @@ async function bootstrap(): Promise<void> {
   );
 
   const port = process.env.PORT ?? 3001;
-  await app.listen(port);
+  await app.listen(port, '0.0.0.0');
   console.log(`🚀 API running on port ${port}`);
 }
 

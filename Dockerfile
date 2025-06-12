@@ -49,4 +49,4 @@ EXPOSE 3001
 USER nestjs
 
 # Comando de inicio
-CMD ["node", "dist/main.js"]
+CMD ["node", "dist/src/main.js"]
