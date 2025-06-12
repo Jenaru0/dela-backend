@@ -30,6 +30,7 @@ async function bootstrap(): Promise<void> {
       'http://localhost:3000',
       'http://127.0.0.1:3000',
       'https://delabackend.episundc.pe', // Para pruebas del backend
+      'https://dela.episundc.pe', // Frontend en producción
     ];
 
     // Agregar FRONTEND_URL si está definida
