@@ -1,31 +1,29 @@
 # Etapa de construcción
-FROM node:18-alpine AS builder
-
-# Instalar dependencias del sistema
-RUN apk add --no-cache libc6-compat
+FROM node:20-alpine AS builder
 
 # Establecer directorio de trabajo
 WORKDIR /app
 
-# Copiar archivos de configuración
+# Instalar dependencias del sistema
+RUN apk add --no-cache libc6-compat
+
+# Copiar archivos de configuración del paquete
 COPY package*.json ./
-COPY turbo.json ./
-COPY api/package*.json ./api/
 
 # Instalar dependencias
-RUN npm ci
+RUN npm ci --no-audit --no-fund --silent
 
-# Copiar código fuente
-COPY . .
+# Copiar el código fuente
+COPY . ./
 
 # Generar Prisma Client
-RUN cd api && npx prisma generate
+RUN npx prisma generate
 
 # Construir aplicación
-RUN npm run build --filter=api
+RUN npm run build
 
 # Etapa de producción
-FROM node:18-alpine AS runner
+FROM node:20-alpine AS runner
 
 # Instalar dependencias del sistema
 RUN apk add --no-cache libc6-compat
@@ -37,10 +35,10 @@ RUN adduser --system --uid 1001 nestjs
 # Establecer directorio de trabajo
 WORKDIR /app
 
-# Copiar archivos necesarios
-COPY --from=builder --chown=nestjs:nodejs /app/api/dist ./dist
-COPY --from=builder --chown=nestjs:nodejs /app/api/package*.json ./
-COPY --from=builder --chown=nestjs:nodejs /app/api/prisma ./prisma
+# Copiar archivos necesarios desde la etapa de construcción
+COPY --from=builder --chown=nestjs:nodejs /app/dist ./dist
+COPY --from=builder --chown=nestjs:nodejs /app/package*.json ./
+COPY --from=builder --chown=nestjs:nodejs /app/prisma ./prisma
 COPY --from=builder --chown=nestjs:nodejs /app/node_modules ./node_modules
 
 # Cambiar a usuario no-root
