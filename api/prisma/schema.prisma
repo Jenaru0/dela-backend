@@ -8,16 +8,16 @@ datasource db {
 }
 
 model Usuario {
-  id            Int                      @id @default(autoincrement())
-  nombres       String?                  @db.VarChar(100)
-  apellidos     String?                  @db.VarChar(100)
-  email         String                   @unique @db.VarChar(150)
-  celular       String?                  @db.VarChar(15)
-  creadoEn      DateTime                 @default(now())
-  actualizadoEn DateTime                 @updatedAt
-  activo        Boolean                  @default(true)
-  tipoUsuario   TipoUsuario              @default(CLIENTE)
-  
+  id                 Int                      @id @default(autoincrement())
+  nombres            String?                  @db.VarChar(100)
+  apellidos          String?                  @db.VarChar(100)
+  email              String                   @unique @db.VarChar(150)
+  celular            String?                  @db.VarChar(15)
+  creadoEn           DateTime                 @default(now())
+  actualizadoEn      DateTime                 @updatedAt
+  activo             Boolean                  @default(true)
+  tipoUsuario        TipoUsuario              @default(CLIENTE)
+  auth               AutenticacionUsuario?
   carrito            Carrito?
   comentariosReclamo ComentarioReclamo[]
   direcciones        DireccionCliente[]
@@ -26,7 +26,6 @@ model Usuario {
   reclamos           Reclamo[]
   recuperaciones     RecuperacionContrasena[]
   reviews            Resena[]
-  auth               AutenticacionUsuario?
 
   @@map("usuario")
 }
@@ -83,13 +82,12 @@ model Producto {
   estado           EstadoProducto    @default(ACTIVO)
   creadoEn         DateTime          @default(now())
   actualizadoEn    DateTime          @updatedAt
-  
-  carritoItems   CarritoItem[]
-  detallePedidos DetallePedido[]
-  favoritos      Favorito[]
-  imagenes       ImagenProducto[]
-  categoria      CategoriaProducto @relation(fields: [categoriaId], references: [id])
-  reviews        Resena[]
+  carritoItems     CarritoItem[]
+  detallePedidos   DetallePedido[]
+  favoritos        Favorito[]
+  imagenes         ImagenProducto[]
+  categoria        CategoriaProducto @relation(fields: [categoriaId], references: [id])
+  reviews          Resena[]
 
   @@index([categoriaId])
   @@index([estado])
@@ -106,8 +104,8 @@ model ImagenProducto {
   creadoEn   DateTime @default(now())
   producto   Producto @relation(fields: [productoId], references: [id], onDelete: Cascade)
 
-  @@index([productoId])
   @@unique([productoId, orden])
+  @@index([productoId])
   @@map("imagen_producto")
 }
 
@@ -124,9 +122,8 @@ model DireccionCliente {
   activa         Boolean  @default(true)
   creadoEn       DateTime @default(now())
   actualizadoEn  DateTime @updatedAt
-  
-  usuario Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
-  pedidos Pedido[]
+  usuario        Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  pedidos        Pedido[]
 
   @@index([usuarioId])
   @@map("direccion_cliente")
@@ -136,26 +133,24 @@ model Favorito {
   usuarioId  Int
   productoId Int
   creadoEn   DateTime @default(now())
-  
-  producto Producto @relation(fields: [productoId], references: [id], onDelete: Cascade)
-  usuario  Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  producto   Producto @relation(fields: [productoId], references: [id], onDelete: Cascade)
+  usuario    Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
 
   @@id([usuarioId, productoId])
   @@map("favorito")
 }
 
 model Resena {
-  id           Int           @id @default(autoincrement())
-  usuarioId    Int
-  productoId   Int
-  calificacion Int           @db.SmallInt
-  comentario   String?
-  estado       EstadoResena  @default(PENDIENTE)
-  creadoEn     DateTime      @default(now())
+  id            Int          @id @default(autoincrement())
+  usuarioId     Int
+  productoId    Int
+  calificacion  Int          @db.SmallInt
+  comentario    String?
+  estado        EstadoResena @default(PENDIENTE)
+  creadoEn      DateTime     @default(now())
   actualizadoEn DateTime     @updatedAt
-  
-  producto Producto @relation(fields: [productoId], references: [id], onDelete: Cascade)
-  usuario  Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  producto      Producto     @relation(fields: [productoId], references: [id], onDelete: Cascade)
+  usuario       Usuario      @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
 
   @@unique([usuarioId, productoId])
   @@index([productoId])
@@ -197,9 +192,8 @@ model Carrito {
   usuarioId     Int           @unique
   creadoEn      DateTime      @default(now())
   actualizadoEn DateTime      @updatedAt
-  
-  usuario Usuario       @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
-  items   CarritoItem[]
+  usuario       Usuario       @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  items         CarritoItem[]
 
   @@map("carrito")
 }
@@ -210,9 +204,8 @@ model CarritoItem {
   cantidad      Int
   creadoEn      DateTime @default(now())
   actualizadoEn DateTime @updatedAt
-  
-  carrito  Carrito  @relation(fields: [carritoId], references: [id], onDelete: Cascade)
-  producto Producto @relation(fields: [productoId], references: [id], onDelete: Cascade)
+  carrito       Carrito  @relation(fields: [carritoId], references: [id], onDelete: Cascade)
+  producto      Producto @relation(fields: [productoId], references: [id], onDelete: Cascade)
 
   @@id([carritoId, productoId])
   @@map("carrito_item")
@@ -220,7 +213,7 @@ model CarritoItem {
 
 model Pedido {
   id              Int              @id @default(autoincrement())
-  numero          String           @unique @db.VarChar(20) // PED-2024-000001
+  numero          String           @unique @db.VarChar(20)
   usuarioId       Int
   direccionId     Int
   subtotal        Decimal          @db.Decimal(10, 2)
@@ -238,12 +231,11 @@ model Pedido {
   notasInternas   String?
   creadoEn        DateTime         @default(now())
   actualizadoEn   DateTime         @updatedAt
-  
-  detallePedidos DetallePedido[]
-  pagos          Pago[]
-  direccion      DireccionCliente @relation(fields: [direccionId], references: [id])
-  usuario        Usuario          @relation(fields: [usuarioId], references: [id])
-  reclamos       Reclamo[]
+  detallePedidos  DetallePedido[]
+  pagos           Pago[]
+  direccion       DireccionCliente @relation(fields: [direccionId], references: [id])
+  usuario         Usuario          @relation(fields: [usuarioId], references: [id])
+  reclamos        Reclamo[]
 
   @@index([usuarioId])
   @@index([estado])
@@ -257,10 +249,9 @@ model DetallePedido {
   productoId     Int
   cantidad       Int
   precioUnitario Decimal  @db.Decimal(10, 2)
-  subtotal       Decimal  @db.Decimal(10, 2) // cantidad * precioUnitario
-  
-  pedido   Pedido   @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
-  producto Producto @relation(fields: [productoId], references: [id])
+  subtotal       Decimal  @db.Decimal(10, 2)
+  pedido         Pedido   @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  producto       Producto @relation(fields: [productoId], references: [id])
 
   @@index([pedidoId])
   @@index([productoId])
@@ -268,16 +259,15 @@ model DetallePedido {
 }
 
 model Pago {
-  id             Int         @id @default(autoincrement())
-  pedidoId       Int
-  metodoPago     MetodoPago
-  monto          Decimal     @db.Decimal(10, 2)
-  estado         EstadoPago  @default(PENDIENTE)
-  referencia     String?     @db.VarChar(255)
-  fechaPago      DateTime?
-  creadoEn       DateTime    @default(now())
-  
-  pedido Pedido @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  id         Int        @id @default(autoincrement())
+  pedidoId   Int
+  metodoPago MetodoPago
+  monto      Decimal    @db.Decimal(10, 2)
+  estado     EstadoPago @default(PENDIENTE)
+  referencia String?    @db.VarChar(255)
+  fechaPago  DateTime?
+  creadoEn   DateTime   @default(now())
+  pedido     Pedido     @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
 
   @@index([pedidoId])
   @@map("pago")
@@ -295,10 +285,9 @@ model Reclamo {
   fechaCierre   DateTime?
   creadoEn      DateTime            @default(now())
   actualizadoEn DateTime            @updatedAt
-  
-  comentarios ComentarioReclamo[]
-  pedido      Pedido?             @relation(fields: [pedidoId], references: [id])
-  usuario     Usuario             @relation(fields: [usuarioId], references: [id])
+  comentarios   ComentarioReclamo[]
+  pedido        Pedido?             @relation(fields: [pedidoId], references: [id])
+  usuario       Usuario             @relation(fields: [usuarioId], references: [id])
 
   @@index([usuarioId])
   @@index([estado])
@@ -310,11 +299,10 @@ model ComentarioReclamo {
   reclamoId  Int
   comentario String
   usuarioId  Int
-  esInterno  Boolean  @default(false) // Comentarios internos del staff
+  esInterno  Boolean  @default(false)
   creadoEn   DateTime @default(now())
-  
-  reclamo Reclamo @relation(fields: [reclamoId], references: [id], onDelete: Cascade)
-  usuario Usuario @relation(fields: [usuarioId], references: [id])
+  reclamo    Reclamo  @relation(fields: [reclamoId], references: [id], onDelete: Cascade)
+  usuario    Usuario  @relation(fields: [usuarioId], references: [id])
 
   @@index([reclamoId])
   @@map("comentario_reclamo")

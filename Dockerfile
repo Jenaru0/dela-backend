@@ -48,5 +48,5 @@ EXPOSE 3001
 # Cambiamos al usuario no-root
 USER nestjs
 
-# Comando de inicio
-CMD ["node", "dist/src/main.js"]
+# Comando de inicio optimizado
+CMD ["node", "dist/main.js"]

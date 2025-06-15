@@ -25,6 +25,9 @@ coverage/
 *.swp
 *.swo
 
+# Frontend (no necesario en backend)
+web/
+
 # OS files
 .DS_Store
 Thumbs.db
