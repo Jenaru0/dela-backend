@@ -109,7 +109,7 @@ export class CarritoService {
   async updateCartItem(
     usuarioId: number,
     productoId: number,
-    dto: UpdateCartItemDto,
+    dto: UpdateCartItemDto
   ) {
     const carrito = await this.ensureCartExists(usuarioId);
 

@@ -10,7 +10,7 @@ async function bootstrap(): Promise<void> {
   });
   // Habilitar CORS para permitir conexiones desde el frontend
   const allowedOrigins = [
-    'http://localhost:3000', 
+    'http://localhost:3000',
     'http://127.0.0.1:3000',
     'https://dela.episundc.pe', // Dominio de producción
     process.env.FRONTEND_URL, // Variable de entorno para flexibilidad
@@ -29,7 +29,7 @@ async function bootstrap(): Promise<void> {
       forbidNonWhitelisted: true,
       transform: true,
       transformOptions: { enableImplicitConversion: true },
-    }),
+    })
   );
   const port = process.env.PORT ?? 3001;
   await app.listen(port);

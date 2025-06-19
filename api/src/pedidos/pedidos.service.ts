@@ -45,7 +45,7 @@ export class PedidosService {
 
             precio: parseFloat(
               // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-              detalle.producto?.precioUnitario?.toString() || '0',
+              detalle.producto?.precioUnitario?.toString() || '0'
             ),
           },
         })) || [],
@@ -77,13 +77,13 @@ export class PedidosService {
 
       if (!producto) {
         throw new NotFoundException(
-          `Producto con ID ${detalle.productoId} no encontrado`,
+          `Producto con ID ${detalle.productoId} no encontrado`
         );
       }
 
       if (producto.stock < detalle.cantidad) {
         throw new BadRequestException(
-          `Stock insuficiente para el producto ${producto.nombre}`,
+          `Stock insuficiente para el producto ${producto.nombre}`
         );
       }
 
@@ -247,7 +247,7 @@ export class PedidosService {
     search?: string,
     estado?: EstadoPedido,
     fechaInicio?: string,
-    fechaFin?: string,
+    fechaFin?: string
   ) {
     const skip = (page - 1) * limit;
 
@@ -445,7 +445,7 @@ export class PedidosService {
   async cambiarEstado(
     id: number,
     estado: EstadoPedido,
-    notasInternas?: string,
+    notasInternas?: string
   ) {
     const updateData: UpdatePedidoDto = { estado };
 

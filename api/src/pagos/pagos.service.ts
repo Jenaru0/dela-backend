@@ -31,7 +31,7 @@ export class PagosService {
 
     const totalPagado = pagosExistentes.reduce(
       (total, pago) => total + Number(pago.monto),
-      0,
+      0
     );
 
     const totalPedido = Number(pedido.total);
@@ -39,7 +39,7 @@ export class PagosService {
 
     if (totalPagado + nuevoMonto > totalPedido) {
       throw new BadRequestException(
-        `El monto del pago excede el total pendiente. Pendiente: S/${totalPedido - totalPagado}`,
+        `El monto del pago excede el total pendiente. Pendiente: S/${totalPedido - totalPagado}`
       );
     }
 
@@ -245,7 +245,7 @@ export class PagosService {
 
     if (pago.estado !== 'COMPLETADO') {
       throw new BadRequestException(
-        'Solo se pueden reembolsar pagos completados',
+        'Solo se pueden reembolsar pagos completados'
       );
     }
 
@@ -272,7 +272,7 @@ export class PagosService {
 
     const totalPagado = pedido.pagos.reduce(
       (total, pago) => total + Number(pago.monto),
-      0,
+      0
     );
 
     const totalPedido = Number(pedido.total);

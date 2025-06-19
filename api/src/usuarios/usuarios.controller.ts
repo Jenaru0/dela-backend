@@ -30,11 +30,11 @@ export class UsuariosController {
   @UseGuards(JwtAutenticacionGuard)
   async create(
     @Body() createUsuarioDto: CreateUsuarioDto,
-    @Request() req: PeticionAutenticada,
+    @Request() req: PeticionAutenticada
   ) {
     if (req.user.tipoUsuario !== 'ADMIN') {
       throw new ForbiddenException(
-        'Solo administradores pueden crear usuarios.',
+        'Solo administradores pueden crear usuarios.'
       );
     }
     const usuario = await this.usuariosService.create(createUsuarioDto);
@@ -49,12 +49,12 @@ export class UsuariosController {
     @Request() req: PeticionAutenticada,
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
-    @Query('search') search?: string,
+    @Query('search') search?: string
   ) {
     // Solo admin puede listar todos
     if (req.user.tipoUsuario !== 'ADMIN') {
       throw new ForbiddenException(
-        'Solo administradores pueden listar todos los usuarios.',
+        'Solo administradores pueden listar todos los usuarios.'
       );
     }
 
@@ -62,7 +62,7 @@ export class UsuariosController {
     const result = await this.usuariosService.findAllWithPagination(
       page,
       limit,
-      { search },
+      { search }
     );
 
     return {
@@ -88,11 +88,11 @@ export class UsuariosController {
   @UseGuards(JwtAutenticacionGuard)
   async updateProfile(
     @Body() dto: ActualizarPerfilDto,
-    @Request() req: PeticionAutenticada,
+    @Request() req: PeticionAutenticada
   ) {
     const usuario = await this.usuariosService.actualizarPerfil(
       Number(req.user.id),
-      dto,
+      dto
     );
     return {
       mensaje: 'Perfil actualizado correctamente.',
@@ -129,7 +129,7 @@ export class UsuariosController {
       // Solo el propio usuario puede ver su perfil
       if (req.user.id !== usuario?.id) {
         throw new ForbiddenException(
-          'No tienes permisos para ver este usuario.',
+          'No tienes permisos para ver este usuario.'
         );
       }
     }
@@ -145,7 +145,7 @@ export class UsuariosController {
   async update(
     @Param('id') id: string,
     @Body() updateUsuarioDto: UpdateUsuarioDto,
-    @Request() req: PeticionAutenticada,
+    @Request() req: PeticionAutenticada
   ) {
     let usuario: Usuario;
 
@@ -153,13 +153,13 @@ export class UsuariosController {
       // Admin puede actualizar cualquier usuario
       usuario = await this.usuariosService.updateForAdmin(
         +id,
-        updateUsuarioDto,
+        updateUsuarioDto
       );
     } else {
       // Usuario normal solo puede editarse a sí mismo
       if (req.user.id !== +id) {
         throw new ForbiddenException(
-          'No tienes permisos para editar este usuario.',
+          'No tienes permisos para editar este usuario.'
         );
       }
       usuario = await this.usuariosService.update(+id, updateUsuarioDto);
@@ -175,12 +175,12 @@ export class UsuariosController {
   @UseGuards(JwtAutenticacionGuard)
   async activateUser(
     @Param('id') id: string,
-    @Request() req: PeticionAutenticada,
+    @Request() req: PeticionAutenticada
   ) {
     // Solo admin puede activar usuarios
     if (req.user.tipoUsuario !== 'ADMIN') {
       throw new ForbiddenException(
-        'Solo administradores pueden activar usuarios.',
+        'Solo administradores pueden activar usuarios.'
       );
     }
 
@@ -195,12 +195,12 @@ export class UsuariosController {
   @UseGuards(JwtAutenticacionGuard)
   async deactivateUser(
     @Param('id') id: string,
-    @Request() req: PeticionAutenticada,
+    @Request() req: PeticionAutenticada
   ) {
     // Solo admin puede desactivar usuarios
     if (req.user.tipoUsuario !== 'ADMIN') {
       throw new ForbiddenException(
-        'Solo administradores pueden desactivar usuarios.',
+        'Solo administradores pueden desactivar usuarios.'
       );
     }
 
@@ -217,7 +217,7 @@ export class UsuariosController {
     // Solo admin o el propio usuario puede eliminar
     if (req.user.tipoUsuario !== 'ADMIN' && req.user.id !== +id) {
       throw new ForbiddenException(
-        'No tienes permisos para eliminar este usuario.',
+        'No tienes permisos para eliminar este usuario.'
       );
     }
     await this.usuariosService.remove(+id);

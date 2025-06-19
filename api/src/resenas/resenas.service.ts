@@ -36,7 +36,7 @@ export class ResenasService {
 
     if (existingResena) {
       throw new ConflictException(
-        'Ya has dejado una reseña para este producto',
+        'Ya has dejado una reseña para este producto'
       );
     }
 
@@ -53,7 +53,7 @@ export class ResenasService {
 
     if (!hasComprado) {
       throw new ForbiddenException(
-        'Solo puedes reseñar productos que hayas comprado',
+        'Solo puedes reseñar productos que hayas comprado'
       );
     }
 
@@ -156,7 +156,7 @@ export class ResenasService {
     productoId: number,
     page: number = 1,
     limit: number = 10,
-    estado: EstadoResena = EstadoResena.APROBADO,
+    estado: EstadoResena = EstadoResena.APROBADO
   ) {
     const skip = (page - 1) * limit;
 
@@ -239,14 +239,14 @@ export class ResenasService {
     id: number,
     updateResenaDto: UpdateResenaDto,
     usuarioId?: number,
-    tipoUsuario?: TipoUsuario,
+    tipoUsuario?: TipoUsuario
   ) {
     const resena = await this.findOne(id);
 
     // Solo el autor o admin pueden editar
     if (tipoUsuario !== TipoUsuario.ADMIN && resena.usuarioId !== usuarioId) {
       throw new ForbiddenException(
-        'No tienes permisos para editar esta reseña',
+        'No tienes permisos para editar esta reseña'
       );
     }
 
@@ -283,7 +283,7 @@ export class ResenasService {
     // Solo el autor o admin pueden eliminar
     if (tipoUsuario !== TipoUsuario.ADMIN && resena.usuarioId !== usuarioId) {
       throw new ForbiddenException(
-        'No tienes permisos para eliminar esta reseña',
+        'No tienes permisos para eliminar esta reseña'
       );
     }
 

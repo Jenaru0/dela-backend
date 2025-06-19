@@ -85,7 +85,7 @@ export class ReclamosService {
     tipoReclamo?: string,
     search?: string,
     fechaInicio?: string,
-    fechaFin?: string,
+    fechaFin?: string
   ) {
     const skip = (page - 1) * limit;
 
@@ -296,7 +296,7 @@ export class ReclamosService {
     id: number,
     updateReclamoDto: UpdateReclamoDto,
     usuarioId?: number,
-    tipoUsuario?: TipoUsuario,
+    tipoUsuario?: TipoUsuario
   ) {
     // Verificar que el reclamo existe y pertenece al usuario o es admin
     await this.findOne(id, usuarioId, tipoUsuario);
@@ -380,7 +380,7 @@ export class ReclamosService {
     reclamoId: number,
     usuarioId: number,
     createComentarioDto: CreateComentarioReclamoDto,
-    tipoUsuario?: TipoUsuario,
+    tipoUsuario?: TipoUsuario
   ) {
     // Verificar que el reclamo existe
     await this.findOne(reclamoId, usuarioId, tipoUsuario);

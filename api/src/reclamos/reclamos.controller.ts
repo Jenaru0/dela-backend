@@ -31,7 +31,7 @@ export class ReclamosController {
   @Post()
   create(
     @Request() req: PeticionAutenticada,
-    @Body() createReclamoDto: CreateReclamoDto,
+    @Body() createReclamoDto: CreateReclamoDto
   ) {
     return this.reclamosService.create(req.user.id, createReclamoDto);
   }
@@ -40,7 +40,7 @@ export class ReclamosController {
   findMyReclamos(
     @Request() req: PeticionAutenticada,
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
-    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number
   ) {
     return this.reclamosService.findByUser(req.user.id, page, limit);
   }
@@ -55,7 +55,7 @@ export class ReclamosController {
     @Query('tipoReclamo') tipoReclamo?: string,
     @Query('search') search?: string,
     @Query('fechaInicio') fechaInicio?: string,
-    @Query('fechaFin') fechaFin?: string,
+    @Query('fechaFin') fechaFin?: string
   ) {
     return this.reclamosService.findAll(
       page,
@@ -65,7 +65,7 @@ export class ReclamosController {
       tipoReclamo,
       search,
       fechaInicio,
-      fechaFin,
+      fechaFin
     );
   }
 
@@ -78,7 +78,7 @@ export class ReclamosController {
   @Get(':id')
   findOne(
     @Param('id', ParseIntPipe) id: number,
-    @Request() req: PeticionAutenticada,
+    @Request() req: PeticionAutenticada
   ) {
     return this.reclamosService.findOne(id, req.user.id, req.user.tipoUsuario);
   }
@@ -87,13 +87,13 @@ export class ReclamosController {
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateReclamoDto: UpdateReclamoDto,
-    @Request() req: PeticionAutenticada,
+    @Request() req: PeticionAutenticada
   ) {
     return this.reclamosService.update(
       id,
       updateReclamoDto,
       req.user.id,
-      req.user.tipoUsuario,
+      req.user.tipoUsuario
     );
   }
 
@@ -101,13 +101,13 @@ export class ReclamosController {
   addComment(
     @Param('id', ParseIntPipe) id: number,
     @Body() createComentarioDto: CreateComentarioReclamoDto,
-    @Request() req: PeticionAutenticada,
+    @Request() req: PeticionAutenticada
   ) {
     return this.reclamosService.addComment(
       id,
       req.user.id,
       createComentarioDto,
-      req.user.tipoUsuario,
+      req.user.tipoUsuario
     );
   }
 
@@ -115,7 +115,7 @@ export class ReclamosController {
   @UseGuards(AdminGuard)
   remove(
     @Param('id', ParseIntPipe) id: number,
-    @Request() req: PeticionAutenticada,
+    @Request() req: PeticionAutenticada
   ) {
     return this.reclamosService.remove(id, req.user.id, req.user.tipoUsuario);
   }

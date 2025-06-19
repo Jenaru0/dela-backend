@@ -27,7 +27,7 @@ export class PromocionesController {
   async create(@Body() dto: CreatePromocionDto, @Request() req) {
     if (req.user.tipoUsuario !== 'ADMIN') {
       throw new ForbiddenException(
-        'Solo los administradores pueden crear promociones',
+        'Solo los administradores pueden crear promociones'
       );
     }
 
@@ -48,7 +48,7 @@ export class PromocionesController {
   @Get('validar/:codigo')
   async validarPromocion(
     @Param('codigo') codigo: string,
-    @Query('monto') monto?: string,
+    @Query('monto') monto?: string
   ) {
     const montoCompra = monto ? parseFloat(monto) : undefined;
     return this.promocionesService.validarPromocion(codigo, montoCompra);
@@ -57,7 +57,7 @@ export class PromocionesController {
   @Post('calcular-descuento')
   async calcularDescuento(
     @Body('codigo') codigo: string,
-    @Body('subtotal') subtotal: number,
+    @Body('subtotal') subtotal: number
   ) {
     return this.promocionesService.calcularDescuento(codigo, subtotal);
   }
@@ -66,7 +66,7 @@ export class PromocionesController {
   async findOne(@Param('id', ParseIntPipe) id: number, @Request() req) {
     if (req.user.tipoUsuario !== 'ADMIN') {
       throw new ForbiddenException(
-        'Solo los administradores pueden ver detalles de promociones',
+        'Solo los administradores pueden ver detalles de promociones'
       );
     }
 
@@ -77,11 +77,11 @@ export class PromocionesController {
   async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdatePromocionDto,
-    @Request() req,
+    @Request() req
   ) {
     if (req.user.tipoUsuario !== 'ADMIN') {
       throw new ForbiddenException(
-        'Solo los administradores pueden actualizar promociones',
+        'Solo los administradores pueden actualizar promociones'
       );
     }
 
@@ -92,7 +92,7 @@ export class PromocionesController {
   async remove(@Param('id', ParseIntPipe) id: number, @Request() req) {
     if (req.user.tipoUsuario !== 'ADMIN') {
       throw new ForbiddenException(
-        'Solo los administradores pueden eliminar promociones',
+        'Solo los administradores pueden eliminar promociones'
       );
     }
 

@@ -30,11 +30,11 @@ export class AutenticacionController {
   @UseGuards(JwtAutenticacionGuard)
   async cambiarContrasena(
     @Body() dto: CambiarContrasenaDto,
-    @Request() req: any,
+    @Request() req: any
   ) {
     return this.autenticacionService.cambiarContrasena(
       Number(req.user.id),
-      dto,
+      dto
     );
   }
 }

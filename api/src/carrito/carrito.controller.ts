@@ -29,7 +29,7 @@ export class CarritoController {
   @Post('items')
   async addItemToCart(
     @Body() dto: AddCartItemDto,
-    @Request() req: PeticionAutenticada,
+    @Request() req: PeticionAutenticada
   ) {
     return this.carritoService.addItemToCart(req.user.id, dto);
   }
@@ -38,7 +38,7 @@ export class CarritoController {
   async updateCartItem(
     @Param('productoId', ParseIntPipe) productoId: number,
     @Body() dto: UpdateCartItemDto,
-    @Request() req: PeticionAutenticada,
+    @Request() req: PeticionAutenticada
   ) {
     return this.carritoService.updateCartItem(req.user.id, productoId, dto);
   }
@@ -46,7 +46,7 @@ export class CarritoController {
   @Delete('items/:productoId')
   async removeItemFromCart(
     @Param('productoId', ParseIntPipe) productoId: number,
-    @Request() req: PeticionAutenticada,
+    @Request() req: PeticionAutenticada
   ) {
     return this.carritoService.removeItemFromCart(req.user.id, productoId);
   }

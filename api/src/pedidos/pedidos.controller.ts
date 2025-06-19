@@ -34,7 +34,7 @@ export class PedidosController {
   @Post()
   async create(
     @Body() dto: CreatePedidoDto,
-    @Request() req: AuthenticatedRequest,
+    @Request() req: AuthenticatedRequest
   ) {
     // Solo el usuario puede crear su propio pedido o un admin
     if (req.user.tipoUsuario !== 'ADMIN' && req.user.id !== dto.usuarioId) {
@@ -62,11 +62,11 @@ export class PedidosController {
     @Query('search') search?: string,
     @Query('estado') estado?: EstadoPedido,
     @Query('fechaInicio') fechaInicio?: string,
-    @Query('fechaFin') fechaFin?: string,
+    @Query('fechaFin') fechaFin?: string
   ) {
     if (req.user.tipoUsuario !== 'ADMIN') {
       throw new ForbiddenException(
-        'Solo administradores pueden acceder a esta información.',
+        'Solo administradores pueden acceder a esta información.'
       );
     }
 
@@ -79,7 +79,7 @@ export class PedidosController {
       search,
       estado,
       fechaInicio,
-      fechaFin,
+      fechaFin
     );
   }
 
@@ -87,7 +87,7 @@ export class PedidosController {
   async findAllForAdmin(@Request() req: AuthenticatedRequest) {
     if (req.user.tipoUsuario !== 'ADMIN') {
       throw new ForbiddenException(
-        'Solo administradores pueden acceder a esta información.',
+        'Solo administradores pueden acceder a esta información.'
       );
     }
 
@@ -97,7 +97,7 @@ export class PedidosController {
   @Get()
   async findAll(
     @Query() filtros: FiltrosPedidosDto,
-    @Request() req: AuthenticatedRequest,
+    @Request() req: AuthenticatedRequest
   ) {
     // Si no es admin, solo puede ver sus propios pedidos
     if (req.user.tipoUsuario !== 'ADMIN') {
@@ -110,7 +110,7 @@ export class PedidosController {
   @Get(':id')
   async findOne(
     @Param('id', ParseIntPipe) id: number,
-    @Request() req: AuthenticatedRequest,
+    @Request() req: AuthenticatedRequest
   ) {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const pedido = await this.pedidosService.findOne(id);
@@ -127,12 +127,12 @@ export class PedidosController {
   async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdatePedidoDto,
-    @Request() req: AuthenticatedRequest,
+    @Request() req: AuthenticatedRequest
   ) {
     // Solo admin puede actualizar pedidos
     if (req.user.tipoUsuario !== 'ADMIN') {
       throw new ForbiddenException(
-        'Solo los administradores pueden actualizar pedidos',
+        'Solo los administradores pueden actualizar pedidos'
       );
     }
 
@@ -143,12 +143,12 @@ export class PedidosController {
   async cambiarEstado(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: CambiarEstadoDto,
-    @Request() req: AuthenticatedRequest,
+    @Request() req: AuthenticatedRequest
   ) {
     // Solo admin puede cambiar estado
     if (req.user.tipoUsuario !== 'ADMIN') {
       throw new ForbiddenException(
-        'Solo los administradores pueden cambiar el estado',
+        'Solo los administradores pueden cambiar el estado'
       );
     }
 

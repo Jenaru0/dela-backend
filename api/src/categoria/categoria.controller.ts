@@ -26,7 +26,7 @@ export class CategoriaController {
   async create(@Body() dto: CreateCategoriaDto, @Request() req) {
     if (req.user.tipoUsuario !== 'ADMIN') {
       throw new ForbiddenException(
-        'Solo administradores pueden crear categorías.',
+        'Solo administradores pueden crear categorías.'
       );
     }
     return this.categoriaService.create(dto);
@@ -47,11 +47,11 @@ export class CategoriaController {
     @Request() req,
     @Query('page') page: string = '1',
     @Query('limit') limit: string = '10',
-    @Query('search') search?: string,
+    @Query('search') search?: string
   ) {
     if (req.user.tipoUsuario !== 'ADMIN') {
       throw new ForbiddenException(
-        'Solo administradores pueden acceder a esta información.',
+        'Solo administradores pueden acceder a esta información.'
       );
     }
 
@@ -61,7 +61,7 @@ export class CategoriaController {
     return this.categoriaService.findAllForAdminWithPagination(
       pageNum,
       limitNum,
-      search,
+      search
     );
   }
 
@@ -75,11 +75,11 @@ export class CategoriaController {
   async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateCategoriaDto,
-    @Request() req,
+    @Request() req
   ) {
     if (req.user.tipoUsuario !== 'ADMIN') {
       throw new ForbiddenException(
-        'Solo administradores pueden editar categorías.',
+        'Solo administradores pueden editar categorías.'
       );
     }
     return this.categoriaService.update(id, dto);
@@ -90,7 +90,7 @@ export class CategoriaController {
   async remove(@Param('id', ParseIntPipe) id: number, @Request() req) {
     if (req.user.tipoUsuario !== 'ADMIN') {
       throw new ForbiddenException(
-        'Solo administradores pueden eliminar categorías.',
+        'Solo administradores pueden eliminar categorías.'
       );
     }
     return this.categoriaService.remove(id);

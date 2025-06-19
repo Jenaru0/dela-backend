@@ -27,7 +27,7 @@ export class ProductosController {
   async create(@Body() dto: CreateProductoDto, @Request() req) {
     if (req.user.tipoUsuario !== 'ADMIN') {
       throw new ForbiddenException(
-        'Solo los administradores pueden crear productos',
+        'Solo los administradores pueden crear productos'
       );
     }
 
@@ -38,11 +38,11 @@ export class ProductosController {
   async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateProductoDto,
-    @Request() req,
+    @Request() req
   ) {
     if (req.user.tipoUsuario !== 'ADMIN') {
       throw new ForbiddenException(
-        'Solo los administradores pueden editar productos',
+        'Solo los administradores pueden editar productos'
       );
     }
     return this.productosService.update(id, dto);
@@ -52,7 +52,7 @@ export class ProductosController {
   async remove(@Param('id', ParseIntPipe) id: number, @Request() req) {
     if (req.user.tipoUsuario !== 'ADMIN') {
       throw new ForbiddenException(
-        'Solo los administradores pueden eliminar productos',
+        'Solo los administradores pueden eliminar productos'
       );
     }
     return this.productosService.remove(id);
@@ -63,11 +63,11 @@ export class ProductosController {
   async addImagen(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: CreateImagenProductoDto,
-    @Request() req,
+    @Request() req
   ) {
     if (req.user.tipoUsuario !== 'ADMIN') {
       throw new ForbiddenException(
-        'Solo los administradores pueden añadir imágenes',
+        'Solo los administradores pueden añadir imágenes'
       );
     }
     return this.productosService.addImagen({ ...dto, productoId: id });
@@ -77,11 +77,11 @@ export class ProductosController {
   async updateImagen(
     @Param('imagenId', ParseIntPipe) imagenId: number,
     @Body() dto: UpdateImagenProductoDto,
-    @Request() req,
+    @Request() req
   ) {
     if (req.user.tipoUsuario !== 'ADMIN') {
       throw new ForbiddenException(
-        'Solo los administradores pueden actualizar imágenes',
+        'Solo los administradores pueden actualizar imágenes'
       );
     }
     return this.productosService.updateImagen(imagenId, dto);
@@ -90,11 +90,11 @@ export class ProductosController {
   @Delete('imagenes/:imagenId')
   async removeImagen(
     @Param('imagenId', ParseIntPipe) imagenId: number,
-    @Request() req,
+    @Request() req
   ) {
     if (req.user.tipoUsuario !== 'ADMIN') {
       throw new ForbiddenException(
-        'Solo los administradores pueden eliminar imágenes',
+        'Solo los administradores pueden eliminar imágenes'
       );
     }
     return this.productosService.removeImagen(imagenId);
@@ -104,7 +104,7 @@ export class ProductosController {
   async findAll(@Query() filtros: FiltrosProductosDto, @Request() req) {
     if (req.user.tipoUsuario !== 'ADMIN') {
       throw new ForbiddenException(
-        'Solo los administradores pueden listar productos',
+        'Solo los administradores pueden listar productos'
       );
     }
     return this.productosService.findAllWithFilters(filtros);
@@ -114,7 +114,7 @@ export class ProductosController {
   async findOne(@Param('id', ParseIntPipe) id: number, @Request() req) {
     if (req.user.tipoUsuario !== 'ADMIN') {
       throw new ForbiddenException(
-        'Solo los administradores pueden ver productos',
+        'Solo los administradores pueden ver productos'
       );
     }
     return this.productosService.findOne(id);

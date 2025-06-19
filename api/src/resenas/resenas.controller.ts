@@ -26,7 +26,7 @@ export class ResenasController {
   @UseGuards(JwtAutenticacionGuard)
   create(
     @Request() req: PeticionAutenticada,
-    @Body() createResenaDto: CreateResenaDto,
+    @Body() createResenaDto: CreateResenaDto
   ) {
     return this.resenasService.create(req.user.id, createResenaDto);
   }
@@ -36,7 +36,7 @@ export class ResenasController {
   findMyResenas(
     @Request() req: PeticionAutenticada,
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
-    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number
   ) {
     return this.resenasService.findByUser(req.user.id, page, limit);
   }
@@ -46,7 +46,7 @@ export class ResenasController {
     @Param('productoId', ParseIntPipe) productoId: number,
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
-    @Query('estado') estado?: EstadoResena,
+    @Query('estado') estado?: EstadoResena
   ) {
     return this.resenasService.findByProduct(productoId, page, limit, estado);
   }
@@ -60,7 +60,7 @@ export class ResenasController {
   findAllAdmin(
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
-    @Query('estado') estado?: EstadoResena,
+    @Query('estado') estado?: EstadoResena
   ) {
     return this.resenasService.findAll(page, limit, estado);
   }
@@ -81,13 +81,13 @@ export class ResenasController {
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateResenaDto: UpdateResenaDto,
-    @Request() req: PeticionAutenticada,
+    @Request() req: PeticionAutenticada
   ) {
     return this.resenasService.update(
       id,
       updateResenaDto,
       req.user.id,
-      req.user.tipoUsuario,
+      req.user.tipoUsuario
     );
   }
 
@@ -95,7 +95,7 @@ export class ResenasController {
   @UseGuards(JwtAutenticacionGuard)
   remove(
     @Param('id', ParseIntPipe) id: number,
-    @Request() req: PeticionAutenticada,
+    @Request() req: PeticionAutenticada
   ) {
     return this.resenasService.remove(id, req.user.id, req.user.tipoUsuario);
   }

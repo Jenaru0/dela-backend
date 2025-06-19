@@ -24,7 +24,7 @@ export class AdminController {
     private readonly reclamosService: ReclamosService,
     private readonly resenasService: ResenasService,
     private readonly favoritosService: FavoritosService,
-    private readonly prisma: PrismaService,
+    private readonly prisma: PrismaService
   ) {}
 
   // Obtener actividad completa de un usuario

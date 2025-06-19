@@ -28,7 +28,7 @@ export class FavoritosController {
   @Post()
   async addFavorito(
     @Body() dto: CreateFavoritoDto,
-    @Request() req: PeticionAutenticada,
+    @Request() req: PeticionAutenticada
   ) {
     // req.user.id debe existir (tu guard de JWT debe ponerlo)
     return this.favoritosService.addFavorito(req.user.id, dto);
@@ -36,7 +36,7 @@ export class FavoritosController {
   @Delete(':productoId')
   async removeFavorito(
     @Param('productoId', ParseIntPipe) productoId: number,
-    @Request() req: PeticionAutenticada,
+    @Request() req: PeticionAutenticada
   ) {
     return this.favoritosService.removeFavorito(req.user.id, productoId);
   }

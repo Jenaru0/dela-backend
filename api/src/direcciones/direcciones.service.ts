@@ -65,7 +65,7 @@ export class DireccionesService {
   async update(
     id: number,
     usuarioId: number,
-    updateDireccionDto: UpdateDireccionDto,
+    updateDireccionDto: UpdateDireccionDto
   ) {
     await this.findOne(id, usuarioId);
 
@@ -111,7 +111,7 @@ export class DireccionesService {
 
       if (otrasActivas === 0) {
         throw new ForbiddenException(
-          'No puedes eliminar tu única dirección activa',
+          'No puedes eliminar tu única dirección activa'
         );
       }
     }
@@ -166,7 +166,7 @@ export class DireccionesService {
   async findAllForAdminWithPagination(
     page: number,
     limit: number,
-    filters: { search?: string } = {},
+    filters: { search?: string } = {}
   ) {
     const skip = (page - 1) * limit;
     const { search } = filters;

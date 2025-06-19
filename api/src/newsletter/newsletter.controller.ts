@@ -20,7 +20,7 @@ export class NewsletterController {
   async suscribir(@Body() suscribirNewsletterDto: SuscribirNewsletterDto) {
     try {
       const suscripcion = await this.newsletterService.suscribir(
-        suscribirNewsletterDto,
+        suscribirNewsletterDto
       );
       return {
         mensaje: 'Suscripción al newsletter exitosa',
@@ -85,7 +85,7 @@ export class NewsletterController {
     // Solo admin puede ver todas las suscripciones
     if (req.user.tipoUsuario !== 'ADMIN') {
       throw new ForbiddenException(
-        'Solo administradores pueden ver las suscripciones.',
+        'Solo administradores pueden ver las suscripciones.'
       );
     }
 

@@ -34,7 +34,7 @@ export class DireccionesController {
   @Get()
   async findAll(@Request() req: PeticionAutenticada) {
     const direcciones = await this.direccionesService.findAllByUser(
-      req.user.id,
+      req.user.id
     );
     return {
       mensaje: 'Direcciones obtenidas correctamente.',
@@ -45,11 +45,11 @@ export class DireccionesController {
   @Post()
   async create(
     @Body() createDireccionDto: CreateDireccionDto,
-    @Request() req: PeticionAutenticada,
+    @Request() req: PeticionAutenticada
   ) {
     const direccion = await this.direccionesService.create(
       req.user.id,
-      createDireccionDto,
+      createDireccionDto
     );
     return {
       mensaje: 'Dirección creada correctamente.',
@@ -60,7 +60,7 @@ export class DireccionesController {
   @Get(':id')
   async findOne(
     @Param('id', ParseIntPipe) id: number,
-    @Request() req: PeticionAutenticada,
+    @Request() req: PeticionAutenticada
   ) {
     const direccion = await this.direccionesService.findOne(id, req.user.id);
     return {
@@ -73,12 +73,12 @@ export class DireccionesController {
   async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateDireccionDto: UpdateDireccionDto,
-    @Request() req: PeticionAutenticada,
+    @Request() req: PeticionAutenticada
   ) {
     const direccion = await this.direccionesService.update(
       id,
       req.user.id,
-      updateDireccionDto,
+      updateDireccionDto
     );
     return {
       mensaje: 'Dirección actualizada correctamente.',
@@ -89,7 +89,7 @@ export class DireccionesController {
   @Delete(':id')
   async remove(
     @Param('id', ParseIntPipe) id: number,
-    @Request() req: PeticionAutenticada,
+    @Request() req: PeticionAutenticada
   ) {
     await this.direccionesService.remove(id, req.user.id);
     return {
@@ -100,7 +100,7 @@ export class DireccionesController {
   @Patch(':id/predeterminada')
   async setDefault(
     @Param('id', ParseIntPipe) id: number,
-    @Request() req: PeticionAutenticada,
+    @Request() req: PeticionAutenticada
   ) {
     const direccion = await this.direccionesService.setDefault(id, req.user.id);
     return {
@@ -114,7 +114,7 @@ export class DireccionesController {
     // Solo admin puede acceder
     if (req.user.tipoUsuario !== 'ADMIN') {
       throw new ForbiddenException(
-        'Solo administradores pueden acceder a todas las direcciones.',
+        'Solo administradores pueden acceder a todas las direcciones.'
       );
     }
 
@@ -130,12 +130,12 @@ export class DireccionesController {
     @Query('page') page?: string,
     @Query('limit') limit?: string,
     @Query('search') search?: string,
-    @Request() req?: PeticionAutenticada,
+    @Request() req?: PeticionAutenticada
   ) {
     // Solo admin puede acceder
     if (req?.user.tipoUsuario !== 'ADMIN') {
       throw new ForbiddenException(
-        'Solo administradores pueden acceder a todas las direcciones.',
+        'Solo administradores pueden acceder a todas las direcciones.'
       );
     }
 
@@ -145,7 +145,7 @@ export class DireccionesController {
     const result = await this.direccionesService.findAllForAdminWithPagination(
       pageNumber,
       limitNumber,
-      { search },
+      { search }
     );
 
     return {
@@ -162,7 +162,7 @@ export class DireccionesController {
     // Solo admin puede acceder
     if (req.user.tipoUsuario !== 'ADMIN') {
       throw new ForbiddenException(
-        'Solo administradores pueden acceder a las estadísticas.',
+        'Solo administradores pueden acceder a las estadísticas.'
       );
     }
 

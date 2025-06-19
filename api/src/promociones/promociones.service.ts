@@ -27,7 +27,7 @@ export class PromocionesService {
 
     if (fin <= inicio) {
       throw new BadRequestException(
-        'La fecha de fin debe ser posterior a la fecha de inicio',
+        'La fecha de fin debe ser posterior a la fecha de inicio'
       );
     }
 
@@ -106,7 +106,7 @@ export class PromocionesService {
 
       if (existeCodigo) {
         throw new BadRequestException(
-          'Ya existe una promoción con este código',
+          'Ya existe una promoción con este código'
         );
       }
     }
@@ -121,7 +121,7 @@ export class PromocionesService {
 
       if (fin <= inicio) {
         throw new BadRequestException(
-          'La fecha de fin debe ser posterior a la fecha de inicio',
+          'La fecha de fin debe ser posterior a la fecha de inicio'
         );
       }
     }
@@ -177,7 +177,7 @@ export class PromocionesService {
 
     if (promocion.usoMaximo && promocion.usoActual >= promocion.usoMaximo) {
       throw new BadRequestException(
-        'Esta promoción ha alcanzado su límite de uso',
+        'Esta promoción ha alcanzado su límite de uso'
       );
     }
 
@@ -187,7 +187,7 @@ export class PromocionesService {
       Number(promocion.montoMinimo) > montoCompra
     ) {
       throw new BadRequestException(
-        `Monto mínimo de compra: S/${Number(promocion.montoMinimo)}`,
+        `Monto mínimo de compra: S/${Number(promocion.montoMinimo)}`
       );
     }
 

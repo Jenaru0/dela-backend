@@ -19,7 +19,7 @@ import {
 export class AutenticacionService {
   constructor(
     private prisma: PrismaService,
-    private jwtService: JwtService,
+    private jwtService: JwtService
   ) {}
 
   async registrar(dto: RegistroDto): Promise<RespuestaRegistro> {
@@ -28,12 +28,12 @@ export class AutenticacionService {
     });
     if (usuarioExistente)
       throw new ConflictException(
-        'El correo ya está registrado. Usa otro o recupera tu contraseña.',
+        'El correo ya está registrado. Usa otro o recupera tu contraseña.'
       );
 
     if (dto.contrasena.length < 6)
       throw new BadRequestException(
-        'La contraseña debe tener al menos 6 caracteres.',
+        'La contraseña debe tener al menos 6 caracteres.'
       );
 
     const usuario = await this.prisma.usuario.create({
@@ -69,7 +69,7 @@ export class AutenticacionService {
   async iniciarSesion(dto: InicioSesionDto): Promise<RespuestaInicioSesion> {
     if (dto.contrasena.length < 6)
       throw new BadRequestException(
-        'La contraseña debe tener al menos 6 caracteres.',
+        'La contraseña debe tener al menos 6 caracteres.'
       );
 
     const usuario = await this.prisma.usuario.findUnique({
@@ -79,20 +79,20 @@ export class AutenticacionService {
 
     if (!usuario)
       throw new UnauthorizedException(
-        'El correo electrónico no está registrado.',
+        'El correo electrónico no está registrado.'
       );
     if (!usuario.auth)
       throw new UnauthorizedException(
-        'Error de autenticación interna, comunícate con soporte.',
+        'Error de autenticación interna, comunícate con soporte.'
       );
 
     const valido = await bcrypt.compare(
       dto.contrasena,
-      usuario.auth.contrasena,
+      usuario.auth.contrasena
     );
     if (!valido)
       throw new UnauthorizedException(
-        'La contraseña es incorrecta. Verifica y vuelve a intentarlo.',
+        'La contraseña es incorrecta. Verifica y vuelve a intentarlo.'
       );
 
     const payload = {
@@ -122,19 +122,19 @@ export class AutenticacionService {
 
   async cambiarContrasena(
     usuarioId: number,
-    dto: CambiarContrasenaDto,
+    dto: CambiarContrasenaDto
   ): Promise<{ mensaje: string }> {
     // Validar que las contraseñas coincidan
     if (dto.nuevaContrasena !== dto.confirmarContrasena) {
       throw new BadRequestException(
-        'La nueva contraseña y su confirmación no coinciden.',
+        'La nueva contraseña y su confirmación no coinciden.'
       );
     }
 
     // Validar que la nueva contraseña tenga al menos 6 caracteres
     if (dto.nuevaContrasena.length < 6) {
       throw new BadRequestException(
-        'La nueva contraseña debe tener al menos 6 caracteres.',
+        'La nueva contraseña debe tener al menos 6 caracteres.'
       );
     }
 
@@ -146,14 +146,14 @@ export class AutenticacionService {
 
     if (!usuario || !usuario.auth) {
       throw new UnauthorizedException(
-        'Usuario no encontrado o sin datos de autenticación.',
+        'Usuario no encontrado o sin datos de autenticación.'
       );
     }
 
     // Verificar que la contraseña actual sea correcta
     const contrasenaValida = await bcrypt.compare(
       dto.contrasenaActual,
-      usuario.auth.contrasena,
+      usuario.auth.contrasena
     );
 
     if (!contrasenaValida) {

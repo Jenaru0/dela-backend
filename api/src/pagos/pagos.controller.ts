@@ -27,7 +27,7 @@ export class PagosController {
     // Solo admin puede registrar pagos directamente
     if (req.user.tipoUsuario !== 'ADMIN') {
       throw new ForbiddenException(
-        'Solo los administradores pueden registrar pagos',
+        'Solo los administradores pueden registrar pagos'
       );
     }
 
@@ -39,7 +39,7 @@ export class PagosController {
     // Solo admin puede ver todos los pagos
     if (req.user.tipoUsuario !== 'ADMIN') {
       throw new ForbiddenException(
-        'Solo los administradores pueden ver todos los pagos',
+        'Solo los administradores pueden ver todos los pagos'
       );
     }
 
@@ -50,7 +50,7 @@ export class PagosController {
   async obtenerEstadisticas(@Request() req) {
     if (req.user.tipoUsuario !== 'ADMIN') {
       throw new ForbiddenException(
-        'Solo los administradores pueden ver estadísticas',
+        'Solo los administradores pueden ver estadísticas'
       );
     }
 
@@ -60,14 +60,14 @@ export class PagosController {
   @Get('pedido/:pedidoId')
   async findByPedido(
     @Param('pedidoId', ParseIntPipe) pedidoId: number,
-    @Request() req,
+    @Request() req
   ) {
     // Verificar que el usuario puede acceder a este pedido
     if (req.user.tipoUsuario !== 'ADMIN') {
       // Aquí deberíamos verificar que el pedido pertenece al usuario
       // Por simplicidad, asumimos que solo admin puede ver pagos por ahora
       throw new ForbiddenException(
-        'Solo los administradores pueden ver pagos de pedidos',
+        'Solo los administradores pueden ver pagos de pedidos'
       );
     }
 
@@ -93,11 +93,11 @@ export class PagosController {
   async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdatePagoDto,
-    @Request() req,
+    @Request() req
   ) {
     if (req.user.tipoUsuario !== 'ADMIN') {
       throw new ForbiddenException(
-        'Solo los administradores pueden actualizar pagos',
+        'Solo los administradores pueden actualizar pagos'
       );
     }
 
@@ -107,11 +107,11 @@ export class PagosController {
   async confirmarPago(
     @Param('id', ParseIntPipe) id: number,
     @Body('referencia') referencia?: string,
-    @Request() req?,
+    @Request() req?
   ) {
     if (req.user.tipoUsuario !== 'ADMIN') {
       throw new ForbiddenException(
-        'Solo los administradores pueden confirmar pagos',
+        'Solo los administradores pueden confirmar pagos'
       );
     }
 
@@ -122,11 +122,11 @@ export class PagosController {
   async rechazarPago(
     @Param('id', ParseIntPipe) id: number,
     @Body('motivo') motivo?: string,
-    @Request() req?,
+    @Request() req?
   ) {
     if (req.user.tipoUsuario !== 'ADMIN') {
       throw new ForbiddenException(
-        'Solo los administradores pueden rechazar pagos',
+        'Solo los administradores pueden rechazar pagos'
       );
     }
 
@@ -137,11 +137,11 @@ export class PagosController {
   async procesarReembolso(
     @Param('id', ParseIntPipe) id: number,
     @Body('motivo') motivo?: string,
-    @Request() req?,
+    @Request() req?
   ) {
     if (req.user.tipoUsuario !== 'ADMIN') {
       throw new ForbiddenException(
-        'Solo los administradores pueden procesar reembolsos',
+        'Solo los administradores pueden procesar reembolsos'
       );
     }
 

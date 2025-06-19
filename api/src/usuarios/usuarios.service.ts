@@ -176,7 +176,7 @@ export class UsuariosService {
       });
       if (emailExiste && emailExiste.id !== id) {
         throw new ConflictException(
-          'El correo ya está registrado por otro usuario.',
+          'El correo ya está registrado por otro usuario.'
         );
       }
     }
@@ -203,7 +203,7 @@ export class UsuariosService {
   async findAllWithPagination(
     page: number = 1,
     limit: number = 10,
-    filters: { search?: string } = {},
+    filters: { search?: string } = {}
   ) {
     const skip = (page - 1) * limit;
 

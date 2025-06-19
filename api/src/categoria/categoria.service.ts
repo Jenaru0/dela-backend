@@ -28,7 +28,7 @@ export class CategoriaService {
   async findAllForAdminWithPagination(
     page: number = 1,
     limit: number = 10,
-    search?: string,
+    search?: string
   ) {
     const skip = (page - 1) * limit;
 

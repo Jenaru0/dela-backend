@@ -16,7 +16,7 @@ interface AuthenticatedRequest extends Request {
 @Injectable()
 export class AdminGuard implements CanActivate {
   canActivate(
-    context: ExecutionContext,
+    context: ExecutionContext
   ): boolean | Promise<boolean> | Observable<boolean> {
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
     const user = request.user;
@@ -27,7 +27,7 @@ export class AdminGuard implements CanActivate {
 
     if (user.tipoUsuario !== 'ADMIN') {
       throw new ForbiddenException(
-        'Solo los administradores pueden acceder a este recurso',
+        'Solo los administradores pueden acceder a este recurso'
       );
     }
 
