@@ -12,15 +12,19 @@ export class PrismaService
   implements OnModuleInit, OnModuleDestroy
 {
   private readonly logger = new Logger(PrismaService.name);
-
   constructor() {
+    const databaseUrl =
+      process.env.DATABASE_URL || 'postgresql://test:test@localhost:5432/test';
+
     super({
       log: ['warn', 'error'],
-      datasources: {
-        db: {
-          url: process.env.DATABASE_URL,
+      ...(process.env.DATABASE_URL && {
+        datasources: {
+          db: {
+            url: databaseUrl,
+          },
         },
-      },
+      }),
     });
   }
 
