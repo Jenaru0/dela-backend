@@ -13,7 +13,7 @@ on:
   workflow_dispatch: # Permite ejecutar manualmente
 
 env:
-  NODE_VERSION: '18'
+  NODE_VERSION: '20'
   WORKING_DIR: 'api'
 
 jobs:
