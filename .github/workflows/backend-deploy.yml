@@ -16,8 +16,7 @@ env:
   NODE_VERSION: '20'
   WORKING_DIR: 'api'
 
-jobs:
-  # ✅ Validaciones y Tests
+jobs:  # ✅ Validaciones y Tests
   validate:
     name: ✅ Validar Código
     runs-on: ubuntu-latest
@@ -64,9 +63,7 @@ jobs:
             echo "❌ Error: No se encontró archivo principal main.ts"
             exit 1
           fi
-          echo "✅ Estructura del proyecto validada correctamente"
-
-  # 🏗️ Build y Deploy
+          echo "✅ Estructura del proyecto validada correctamente"  # 🏗️ Build y Deploy
   build-and-deploy:
     name: 🏗️ Build & Deploy
     runs-on: ubuntu-latest
