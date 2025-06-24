@@ -22,7 +22,6 @@ import { JwtAutenticacionGuard } from '../autenticacion/guards/jwt-autenticacion
 @UseGuards(JwtAutenticacionGuard)
 export class ProductosController {
   constructor(private readonly productosService: ProductosService) {}
-
   @Post()
   async create(@Body() dto: CreateProductoDto, @Request() req) {
     if (req.user.tipoUsuario !== 'ADMIN') {
@@ -31,7 +30,16 @@ export class ProductosController {
       );
     }
 
-    return this.productosService.create(dto);
+    try {
+      const producto = await this.productosService.create(dto);
+      return {
+        mensaje: 'Producto creado exitosamente',
+        data: producto,
+      };
+    } catch (error) {
+      console.error('Error al crear producto:', error);
+      throw error;
+    }
   }
 
   @Patch(':id')
@@ -57,7 +65,6 @@ export class ProductosController {
     }
     return this.productosService.remove(id);
   }
-
   // Rutas de imágenes protegidas igual
   @Post(':id/imagenes')
   async addImagen(
@@ -70,9 +77,18 @@ export class ProductosController {
         'Solo los administradores pueden añadir imágenes'
       );
     }
-    return this.productosService.addImagen({ ...dto, productoId: id });
+    
+    try {
+      const imagen = await this.productosService.addImagen({ ...dto, productoId: id });
+      return {
+        mensaje: 'Imagen agregada exitosamente',
+        data: imagen,
+      };
+    } catch (error) {
+      console.error('Error al agregar imagen:', error);
+      throw error;
+    }
   }
-
   @Patch('imagenes/:imagenId')
   async updateImagen(
     @Param('imagenId', ParseIntPipe) imagenId: number,
@@ -84,10 +100,18 @@ export class ProductosController {
         'Solo los administradores pueden actualizar imágenes'
       );
     }
-    return this.productosService.updateImagen(imagenId, dto);
-  }
-
-  @Delete('imagenes/:imagenId')
+    
+    try {
+      const imagen = await this.productosService.updateImagen(imagenId, dto);
+      return {
+        mensaje: 'Imagen actualizada exitosamente',
+        data: imagen,
+      };
+    } catch (error) {
+      console.error('Error al actualizar imagen:', error);
+      throw error;
+    }
+  }  @Delete('imagenes/:imagenId')
   async removeImagen(
     @Param('imagenId', ParseIntPipe) imagenId: number,
     @Request() req
@@ -97,9 +121,27 @@ export class ProductosController {
         'Solo los administradores pueden eliminar imágenes'
       );
     }
-    return this.productosService.removeImagen(imagenId);
+    
+    try {
+      console.log('🗑️ [Controller] Eliminando imagen:', { imagenId, userId: req.user.id });
+      
+      await this.productosService.removeImagen(imagenId);
+        console.log('✅ [Controller] Imagen eliminada exitosamente:', imagenId);
+      
+      return {
+        mensaje: 'Imagen eliminada exitosamente',
+        data: null,
+      };
+    } catch (error) {
+      console.error('❌ [Controller] Error al eliminar imagen:', {
+        imagenId,
+        error: error.message,
+        stack: error.stack
+      });
+      throw error;
+    }
   }
-
+  
   @Get()
   async findAll(@Query() filtros: FiltrosProductosDto, @Request() req) {
     if (req.user.tipoUsuario !== 'ADMIN') {
@@ -107,9 +149,9 @@ export class ProductosController {
         'Solo los administradores pueden listar productos'
       );
     }
-    return this.productosService.findAllWithFilters(filtros);
+    // Para admin: incluir productos inactivos
+    return this.productosService.findAllWithFilters(filtros, true);
   }
-
   @Get(':id')
   async findOne(@Param('id', ParseIntPipe) id: number, @Request() req) {
     if (req.user.tipoUsuario !== 'ADMIN') {
@@ -117,6 +159,16 @@ export class ProductosController {
         'Solo los administradores pueden ver productos'
       );
     }
-    return this.productosService.findOne(id);
+    
+    try {
+      const producto = await this.productosService.findOne(id);
+      return {
+        mensaje: 'Producto obtenido exitosamente',
+        data: producto,
+      };
+    } catch (error) {
+      console.error('Error al obtener producto:', error);
+      throw error;
+    }
   }
 }

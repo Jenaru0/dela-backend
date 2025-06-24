@@ -17,6 +17,10 @@ export class CreateImagenProductoDto {
   url: string;
 
   @IsOptional()
+  @IsString()
+  altText?: string;
+
+  @IsOptional()
   @IsBoolean()
   principal?: boolean;
 

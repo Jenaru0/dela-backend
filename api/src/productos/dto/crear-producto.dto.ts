@@ -38,10 +38,14 @@ export class CreateProductoDto {
   @IsOptional()
   @IsNumber()
   precioAnterior?: number;
-
   @IsInt()
   @Min(0)
   stock: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  stockMinimo?: number;
 
   @IsOptional()
   @IsString()
