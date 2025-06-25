@@ -294,7 +294,7 @@ export class ProductosService {
     } catch (error) {
       console.error('❌ [Service] Error al eliminar imagen:', {
         imagenId: id,
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
       });
       throw error;
     }

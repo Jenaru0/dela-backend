@@ -127,9 +127,14 @@ export class ProductosController {
     }
 
     try {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      const userId: string | number =
+        req.user && typeof req.user === 'object' && 'id' in req.user
+          ? req.user.id
+          : 'unknown';
       console.log('🗑️ [Controller] Eliminando imagen:', {
         imagenId,
-        userId: req.user.id,
+        userId: String(userId),
       });
 
       await this.productosService.removeImagen(imagenId);
@@ -142,8 +147,8 @@ export class ProductosController {
     } catch (error) {
       console.error('❌ [Controller] Error al eliminar imagen:', {
         imagenId,
-        error: error.message,
-        stack: error.stack,
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
       });
       throw error;
     }
