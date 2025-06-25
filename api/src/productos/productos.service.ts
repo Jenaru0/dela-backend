@@ -12,14 +12,15 @@ export class ProductosService {
   constructor(private readonly prisma: PrismaService) {}
   async create(dto: CreateProductoDto) {
     try {
-      const producto = await this.prisma.producto.create({ 
-        data: dto,        include: {
+      const producto = await this.prisma.producto.create({
+        data: dto,
+        include: {
           categoria: true,
           imagenes: {
             orderBy: [
               { principal: 'desc' },
               { orden: 'asc' },
-              { creadoEn: 'asc' }
+              { creadoEn: 'asc' },
             ],
           },
           _count: {
@@ -28,16 +29,23 @@ export class ProductosService {
               reviews: true,
             },
           },
-        },});
-      
-      console.log('✅ Producto creado en DB:', { id: producto.id, nombre: producto.nombre });
+        },
+      });
+
+      console.log('✅ Producto creado en DB:', {
+        id: producto.id,
+        nombre: producto.nombre,
+      });
       return producto;
     } catch (error) {
       console.error('Error al crear producto:', error);
       throw error;
     }
   }
-  async findAllWithFilters(filtros: FiltrosProductosDto, includeInactive = false) {
+  async findAllWithFilters(
+    filtros: FiltrosProductosDto,
+    includeInactive = false
+  ) {
     const {
       busqueda,
       categoriaId,
@@ -77,15 +85,17 @@ export class ProductosService {
     const orderByClause: Prisma.ProductoOrderByWithRelationInput = {};
     orderByClause[orderBy] = sortOrder;
 
-    const skip = (page - 1) * limit;    const [productos, total] = await Promise.all([
+    const skip = (page - 1) * limit;
+    const [productos, total] = await Promise.all([
       this.prisma.producto.findMany({
-        where,        include: { 
-          categoria: true, 
+        where,
+        include: {
+          categoria: true,
           imagenes: {
             orderBy: [
               { principal: 'desc' },
               { orden: 'asc' },
-              { creadoEn: 'asc' }
+              { creadoEn: 'asc' },
             ],
           },
           // Agregar conteos para el admin
@@ -109,7 +119,8 @@ export class ProductosService {
       limit,
       total,
     };
-  }  async findOne(id: number) {
+  }
+  async findOne(id: number) {
     const producto = await this.prisma.producto.findUnique({
       where: { id },
       include: {
@@ -118,7 +129,7 @@ export class ProductosService {
           orderBy: [
             { principal: 'desc' }, // Principal primero
             { orden: 'asc' }, // Luego por orden
-            { creadoEn: 'asc' } // Finalmente por fecha de creación
+            { creadoEn: 'asc' }, // Finalmente por fecha de creación
           ],
         },
         // Agregar conteos
@@ -174,7 +185,7 @@ export class ProductosService {
   async addImagen(dto: CreateImagenProductoDto) {
     try {
       console.log('📸 [Service] Agregando imagen:', dto);
-      
+
       // Si principal: true, poner las demás en principal: false
       if (dto.principal) {
         await this.prisma.imagenProducto.updateMany({
@@ -182,26 +193,28 @@ export class ProductosService {
           data: { principal: false },
         });
       }
-      
+
       // Siempre calcular un orden seguro (no confiar en el frontend)
       const maxOrden = await this.prisma.imagenProducto.aggregate({
         where: { productoId: dto.productoId },
         _max: { orden: true },
       });
       const nuevoOrden = (maxOrden._max.orden || 0) + 1;
-      
+
       // Crear DTO final con orden calculado de manera segura
       const dtoFinal = {
         ...dto,
         orden: nuevoOrden, // Siempre usar el orden calculado
       };
-      
+
       console.log('📋 [Service] Datos finales para crear imagen:', dtoFinal);
-      
-      const imagen = await this.prisma.imagenProducto.create({ data: dtoFinal });
-      
+
+      const imagen = await this.prisma.imagenProducto.create({
+        data: dtoFinal,
+      });
+
       console.log('✅ [Service] Imagen creada exitosamente:', imagen);
-      
+
       return {
         mensaje: 'Imagen agregada exitosamente',
         data: imagen,
@@ -210,7 +223,9 @@ export class ProductosService {
       console.error('❌ [Service] Error al agregar imagen:', error);
       // Si es un error de unique constraint, proporcionar un mensaje más claro
       if (error.code === 'P2002') {
-        throw new Error('Ya existe una imagen con este orden para este producto');
+        throw new Error(
+          'Ya existe una imagen con este orden para este producto'
+        );
       }
       throw error;
     }
@@ -218,7 +233,7 @@ export class ProductosService {
   async updateImagen(id: number, dto: UpdateImagenProductoDto) {
     try {
       console.log('🔄 [Service] Actualizando imagen:', { id, dto });
-      
+
       // Si quiere poner esta imagen como principal, poner las demás en principal: false
       if (dto.principal) {
         const imagen = await this.prisma.imagenProducto.findFirst({
@@ -237,9 +252,12 @@ export class ProductosService {
         where: { id },
         data: dto,
       });
-      
-      console.log('✅ [Service] Imagen actualizada exitosamente:', imagenActualizada);
-      
+
+      console.log(
+        '✅ [Service] Imagen actualizada exitosamente:',
+        imagenActualizada
+      );
+
       return {
         mensaje: 'Imagen actualizada exitosamente',
         data: imagenActualizada,
@@ -252,28 +270,31 @@ export class ProductosService {
   async removeImagen(id: number) {
     try {
       console.log('🗑️ [Service] Eliminando imagen con ID:', id);
-      
+
       // Verificar si la imagen existe
       const imagen = await this.prisma.imagenProducto.findUnique({
-        where: { id }
+        where: { id },
       });
-      
+
       if (!imagen) {
         console.error('❌ [Service] Imagen no encontrada:', id);
         throw new NotFoundException(`Imagen con ID ${id} no encontrada`);
       }
-      
-      console.log('✅ [Service] Imagen encontrada:', { id: imagen.id, productoId: imagen.productoId });
-      
+
+      console.log('✅ [Service] Imagen encontrada:', {
+        id: imagen.id,
+        productoId: imagen.productoId,
+      });
+
       // Eliminar la imagen
       const result = await this.prisma.imagenProducto.delete({ where: { id } });
       console.log('✅ [Service] Imagen eliminada exitosamente:', id);
-      
+
       return result;
     } catch (error) {
       console.error('❌ [Service] Error al eliminar imagen:', {
         imagenId: id,
-        error: error.message
+        error: error.message,
       });
       throw error;
     }

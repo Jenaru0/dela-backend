@@ -77,9 +77,12 @@ export class ProductosController {
         'Solo los administradores pueden añadir imágenes'
       );
     }
-    
+
     try {
-      const imagen = await this.productosService.addImagen({ ...dto, productoId: id });
+      const imagen = await this.productosService.addImagen({
+        ...dto,
+        productoId: id,
+      });
       return {
         mensaje: 'Imagen agregada exitosamente',
         data: imagen,
@@ -100,7 +103,7 @@ export class ProductosController {
         'Solo los administradores pueden actualizar imágenes'
       );
     }
-    
+
     try {
       const imagen = await this.productosService.updateImagen(imagenId, dto);
       return {
@@ -111,7 +114,8 @@ export class ProductosController {
       console.error('Error al actualizar imagen:', error);
       throw error;
     }
-  }  @Delete('imagenes/:imagenId')
+  }
+  @Delete('imagenes/:imagenId')
   async removeImagen(
     @Param('imagenId', ParseIntPipe) imagenId: number,
     @Request() req
@@ -121,13 +125,16 @@ export class ProductosController {
         'Solo los administradores pueden eliminar imágenes'
       );
     }
-    
+
     try {
-      console.log('🗑️ [Controller] Eliminando imagen:', { imagenId, userId: req.user.id });
-      
+      console.log('🗑️ [Controller] Eliminando imagen:', {
+        imagenId,
+        userId: req.user.id,
+      });
+
       await this.productosService.removeImagen(imagenId);
-        console.log('✅ [Controller] Imagen eliminada exitosamente:', imagenId);
-      
+      console.log('✅ [Controller] Imagen eliminada exitosamente:', imagenId);
+
       return {
         mensaje: 'Imagen eliminada exitosamente',
         data: null,
@@ -136,12 +143,12 @@ export class ProductosController {
       console.error('❌ [Controller] Error al eliminar imagen:', {
         imagenId,
         error: error.message,
-        stack: error.stack
+        stack: error.stack,
       });
       throw error;
     }
   }
-  
+
   @Get()
   async findAll(@Query() filtros: FiltrosProductosDto, @Request() req) {
     if (req.user.tipoUsuario !== 'ADMIN') {
@@ -159,7 +166,7 @@ export class ProductosController {
         'Solo los administradores pueden ver productos'
       );
     }
-    
+
     try {
       const producto = await this.productosService.findOne(id);
       return {
