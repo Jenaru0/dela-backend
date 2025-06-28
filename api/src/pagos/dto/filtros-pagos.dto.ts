@@ -23,18 +23,6 @@ export class FiltrosPagosDto {
   fechaFin?: string;
 
   @IsOptional()
-  @IsString()
-  mercadopagoId?: string; // ID de preferencia de MercadoPago
-
-  @IsOptional()
-  @IsString()
-  mercadopagoPaymentId?: string; // ID de pago de MercadoPago
-
-  @IsOptional()
-  @IsString()
-  mercadopagoStatus?: string; // Estado en MercadoPago
-
-  @IsOptional()
   @IsInt()
   page?: number = 1;
 

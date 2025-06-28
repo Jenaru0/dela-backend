@@ -13,7 +13,6 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { PagosService } from './pagos.service';
-import { PagoConRedireccionDto } from './dto/pago-con-redireccion.dto';
 import { PagoConTarjetaDto } from './dto/pago-con-tarjeta.dto';
 import { WebhookMercadoPagoDto } from './dto/webhook-mercadopago.dto';
 import { FiltrosPagosDto } from './dto/filtros-pagos.dto';
@@ -24,21 +23,6 @@ export class PagosController {
   private readonly logger = new Logger(PagosController.name);
 
   constructor(private readonly pagosService: PagosService) {}
-
-  /**
-   * Crear un pago con redirección a MercadoPago
-   */
-  @Post('con-redireccion')
-  @UseGuards(JwtAutenticacionGuard)
-  async crearPagoConRedireccion(@Body() dto: PagoConRedireccionDto) {
-    // Verificar que el usuario puede crear pagos para este pedido
-    // Por ahora permitimos que cualquier usuario autenticado pueda crear pagos
-    // En producción, deberías verificar que el pedido pertenece al usuario
-
-    this.logger.log(`Creando pago con redirección para pedido ${dto.pedidoId}`);
-
-    return this.pagosService.crearPagoMercadoPago(dto);
-  }
 
   /**
    * Webhook de MercadoPago para notificaciones de pago
@@ -86,30 +70,8 @@ export class PagosController {
    */
   @Get('metodos-pago')
   @UseGuards(JwtAutenticacionGuard)
-  obtenerMetodosPago() {
+  async obtenerMetodosPago() {
     return this.pagosService.obtenerMetodosPagoDisponibles();
-  }
-
-  /**
-   * Obtener estado de pago desde MercadoPago
-   */
-  @Get(':id/estado-mercadopago')
-  @UseGuards(JwtAutenticacionGuard)
-  async obtenerEstadoMercadoPago(
-    @Param('id', ParseIntPipe) id: number,
-    @Request() req
-  ) {
-    const pago = await this.pagosService.findOne(id);
-
-    // Verificar permisos
-    if (
-      req.user.tipoUsuario !== 'ADMIN' &&
-      pago.pedido.usuario.id !== req.user.id
-    ) {
-      throw new ForbiddenException('No tienes acceso a este pago');
-    }
-
-    return this.pagosService.obtenerEstadoPagoMercadoPago(id);
   }
 
   /**
@@ -153,33 +115,6 @@ export class PagosController {
   }
 
   /**
-   * Reembolsar un pago (solo admin)
-   */
-  @Post(':id/reembolsar')
-  @UseGuards(JwtAutenticacionGuard)
-  async reembolsarPago(
-    @Param('id', ParseIntPipe) id: number,
-    @Body('motivo') motivo?: string,
-    @Request() req?
-  ) {
-    if (req.user.tipoUsuario !== 'ADMIN') {
-      throw new ForbiddenException(
-        'Solo los administradores pueden procesar reembolsos'
-      );
-    }
-
-    return this.pagosService.reembolsarPago(id, motivo);
-  }
-
-  /**
-   * Obtener métodos de pago disponibles (público para desarrollo)
-   */
-  @Get('metodos-disponibles')
-  obtenerMetodosPagoDisponibles() {
-    return this.pagosService.obtenerMetodosPagoDisponibles();
-  }
-
-  /**
    * Crear pago directo con tarjeta (Checkout API)
    */
   @Post('con-tarjeta')
@@ -196,7 +131,7 @@ export class PagosController {
    */
   @Get('configuracion/validar')
   @UseGuards(JwtAutenticacionGuard)
-  async validarConfiguracion(@Request() req) {
+  validarConfiguracion(@Request() req) {
     if (req.user.tipoUsuario !== 'ADMIN') {
       throw new ForbiddenException(
         'Solo los administradores pueden validar la configuración'
@@ -207,42 +142,21 @@ export class PagosController {
   }
 
   /**
-   * Obtener estadísticas detalladas de MercadoPago
-   */
-  @Get('mercadopago/estadisticas')
-  @UseGuards(JwtAutenticacionGuard)
-  async obtenerEstadisticasMercadoPago(@Request() req) {
-    if (req.user.tipoUsuario !== 'ADMIN') {
-      throw new ForbiddenException(
-        'Solo los administradores pueden ver estadísticas de MercadoPago'
-      );
-    }
-
-    return this.pagosService.obtenerEstadisticasMercadoPago();
-  }
-
-  /**
-   * 🎯 CHECKOUT API - Obtener cuotas disponibles para un monto
+   * CHECKOUT API - Obtener cuotas disponibles para un monto
    */
   @Get('checkout-api/cuotas/:monto')
   @UseGuards(JwtAutenticacionGuard)
-  obtenerCuotasDisponibles(
-    @Param('monto') monto: string,
-    @Query('metodoPago') metodoPago?: string
-  ) {
+  obtenerCuotasDisponibles(@Param('monto') monto: string) {
     const montoNumerico = parseFloat(monto);
     if (isNaN(montoNumerico) || montoNumerico <= 0) {
       throw new BadRequestException('Monto inválido');
     }
 
-    return this.pagosService.obtenerCuotasDisponibles(
-      montoNumerico,
-      metodoPago
-    );
+    return this.pagosService.obtenerCuotasDisponibles(montoNumerico);
   }
 
   /**
-   * 🎯 CHECKOUT API - Validar token de tarjeta
+   * CHECKOUT API - Validar token de tarjeta
    */
   @Post('checkout-api/validar-token')
   @UseGuards(JwtAutenticacionGuard)

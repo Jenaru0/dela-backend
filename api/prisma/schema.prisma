@@ -273,27 +273,20 @@ model Pago {
   creadoEn               DateTime    @default(now())
   actualizadoEn          DateTime    @default(now()) @updatedAt
   
-  // Campos específicos de MercadoPago
-  initPoint              String?     @db.VarChar(500)
-  sandboxInitPoint       String?     @db.VarChar(500)
-  mercadopagoId          String?     @unique @db.VarChar(255)
-  mercadopagoPaymentId   String?     @db.VarChar(255)
-  mercadopagoRefundId    String?     @db.VarChar(255)
-  mercadopagoStatus      String?     @db.VarChar(50)
-  mercadopagoDetail      String?     @db.VarChar(255)
+  // 🔑 ID del pago en MercadoPago (CRÍTICO para webhooks)
+  mercadopagoId          String?     @db.VarChar(255)  // ID del pago en MercadoPago
   
-  // Información adicional para Checkout API
-  tokenTarjeta           String?     @db.VarChar(255) // Token usado (para logs)
-  ultimosCuatroDigitos   String?     @db.VarChar(4)   // Para mostrar al usuario
-  tipoTarjeta            String?     @db.VarChar(20)  // visa, mastercard, etc.
+  // Información de tarjeta para display (NO almacena datos sensibles)
+  ultimosCuatroDigitos   String?     @db.VarChar(4)    // Solo para mostrar al usuario
+  tipoTarjeta            String?     @db.VarChar(20)   // visa, mastercard, etc.
+  tokenTarjeta           String?     @db.VarChar(255)  // Token de referencia (solo para logs)
   
   pedido                 Pedido      @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
 
   @@index([pedidoId])
-  @@index([mercadopagoId])
-  @@index([mercadopagoPaymentId])
   @@index([estado])
   @@index([tipoCheckout])
+  @@index([mercadopagoId])  // 🔍 Índice para búsquedas por MercadoPago ID
   @@map("pago")
 }
 
