@@ -41,6 +41,18 @@ export const getMercadoPagoConfig = (): MercadoPagoConfiguration => {
     throw new Error('🚨 ERROR: MP_ACCESS_TOKEN y MP_PUBLIC_KEY son requeridos');
   }
 
+  // ✅ VALIDACIÓN: URLs de webhook y redirección
+  const webhookUrl =
+    process.env.MP_WEBHOOK_URL || 'http://localhost:3001/pagos/webhook';
+
+  // En producción, validar que las URLs no sean localhost
+  if (!accessToken.startsWith('TEST-') && webhookUrl.includes('localhost')) {
+    throw new Error(
+      '🚨 PRODUCCIÓN: Las URLs de webhook no pueden usar localhost. ' +
+        'Configure MP_WEBHOOK_URL con una URL pública accesible.'
+    );
+  }
+
   return {
     accessToken,
     publicKey,
@@ -50,8 +62,7 @@ export const getMercadoPagoConfig = (): MercadoPagoConfiguration => {
       process.env.MP_FAILURE_URL || 'http://localhost:3000/pagos/error',
     pendingUrl:
       process.env.MP_PENDING_URL || 'http://localhost:3000/pagos/pendiente',
-    webhookUrl:
-      process.env.MP_WEBHOOK_URL || 'http://localhost:3001/pagos/webhook',
+    webhookUrl,
   };
 };
 

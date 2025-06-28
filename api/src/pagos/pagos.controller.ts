@@ -10,6 +10,7 @@ import {
   Request,
   ForbiddenException,
   Logger,
+  BadRequestException,
 } from '@nestjs/common';
 import { PagosService } from './pagos.service';
 import { PagoConRedireccionDto } from './dto/pago-con-redireccion.dto';
@@ -188,5 +189,72 @@ export class PagosController {
       `Creando pago directo con tarjeta para pedido ${dto.pedidoId}`
     );
     return this.pagosService.crearPagoDirectoMercadoPago(dto);
+  }
+
+  /**
+   * Validar configuración de MercadoPago
+   */
+  @Get('configuracion/validar')
+  @UseGuards(JwtAutenticacionGuard)
+  async validarConfiguracion(@Request() req) {
+    if (req.user.tipoUsuario !== 'ADMIN') {
+      throw new ForbiddenException(
+        'Solo los administradores pueden validar la configuración'
+      );
+    }
+
+    return this.pagosService.validarConfiguracionMercadoPago();
+  }
+
+  /**
+   * Obtener estadísticas detalladas de MercadoPago
+   */
+  @Get('mercadopago/estadisticas')
+  @UseGuards(JwtAutenticacionGuard)
+  async obtenerEstadisticasMercadoPago(@Request() req) {
+    if (req.user.tipoUsuario !== 'ADMIN') {
+      throw new ForbiddenException(
+        'Solo los administradores pueden ver estadísticas de MercadoPago'
+      );
+    }
+
+    return this.pagosService.obtenerEstadisticasMercadoPago();
+  }
+
+  /**
+   * 🎯 CHECKOUT API - Obtener cuotas disponibles para un monto
+   */
+  @Get('checkout-api/cuotas/:monto')
+  @UseGuards(JwtAutenticacionGuard)
+  obtenerCuotasDisponibles(
+    @Param('monto') monto: string,
+    @Query('metodoPago') metodoPago?: string
+  ) {
+    const montoNumerico = parseFloat(monto);
+    if (isNaN(montoNumerico) || montoNumerico <= 0) {
+      throw new BadRequestException('Monto inválido');
+    }
+
+    return this.pagosService.obtenerCuotasDisponibles(
+      montoNumerico,
+      metodoPago
+    );
+  }
+
+  /**
+   * 🎯 CHECKOUT API - Validar token de tarjeta
+   */
+  @Post('checkout-api/validar-token')
+  @UseGuards(JwtAutenticacionGuard)
+  validarTokenTarjeta(@Body('token') token: string) {
+    if (!token) {
+      throw new BadRequestException('Token es requerido');
+    }
+
+    const valido = this.pagosService.validarTokenTarjeta(token);
+    return {
+      valido,
+      mensaje: valido ? 'Token válido' : 'Token inválido',
+    };
   }
 }

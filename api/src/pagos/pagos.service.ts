@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { PagoConRedireccionDto } from './dto/pago-con-redireccion.dto';
+import { PagoConTarjetaDto } from './dto/pago-con-tarjeta.dto';
 import { WebhookMercadoPagoDto } from './dto/webhook-mercadopago.dto';
 import { FiltrosPagosDto } from './dto/filtros-pagos.dto';
 import { Prisma, EstadoPago, MetodoPago } from '@prisma/client';
@@ -19,6 +20,18 @@ import {
   MERCADOPAGO_STATUS_MAPPING,
   MERCADOPAGO_PAYMENT_METHODS,
 } from './mercadopago.config';
+import { PagosMercadoPagoService } from './pagos-mercadopago.service';
+
+// Interfaz para el resultado del reembolso
+export interface ReembolsoResult {
+  success: boolean;
+  refundId: string;
+  status: string;
+  amount: number;
+  payment_id: string;
+  message: string;
+  simulated?: boolean;
+}
 
 // Interfaz para el pedido con los datos necesarios para MercadoPago
 interface PedidoMercadoPago {
@@ -42,7 +55,10 @@ export class PagosService {
   private readonly logger = new Logger(PagosService.name);
   private mercadopago: MercadoPagoConfig;
 
-  constructor(private readonly prisma: PrismaService) {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly pagosMercadoPagoService: PagosMercadoPagoService
+  ) {
     // 🔒 VALIDACIÓN CRÍTICA: Solo permitir credenciales TEST
     const config = getMercadoPagoConfig();
     this.mercadopago = createMercadoPagoConfig(config);
@@ -456,7 +472,7 @@ export class PagosService {
   }
 
   /**
-   * Reembolsar un pago en MercadoPago
+   * Reembolsar un pago en MercadoPago (MEJORADO - Reembolso real)
    */
   async reembolsarPago(id: number, motivo?: string) {
     const pago = await this.findOne(id);
@@ -474,35 +490,43 @@ export class PagosService {
     }
 
     try {
-      // En MercadoPago SDK v2.8.0, los reembolsos se hacen a través de la API REST
-      // Por ahora, marcaremos el pago como reembolsado en nuestra base de datos
-      // En producción, deberías usar la API REST de MercadoPago para procesar el reembolso real
+      // ✅ REEMBOLSO REAL usando el servicio dedicado
+      const resultado: ReembolsoResult =
+        await this.pagosMercadoPagoService.procesarReembolsoReal(
+          pago.mercadopagoPaymentId || '',
+          undefined, // Reembolso total
+          motivo
+        );
 
+      // Actualizar el pago en la base de datos con información completa del reembolso
       const pagoActualizado = await this.prisma.pago.update({
         where: { id },
         data: {
-          estado: 'REEMBOLSADO',
-          referencia: `REEMBOLSO SOLICITADO - ${motivo || 'Reembolso procesado'}`,
+          estado: 'REEMBOLSADO', // Unificamos parcial y total en un solo estado
+          referencia:
+            resultado.amount && resultado.amount < Number(pago.monto)
+              ? `REEMBOLSO PARCIAL-${resultado.refundId} - S/${resultado.amount} de S/${pago.monto.toString()} - ${motivo || 'Reembolso procesado'}`
+              : `REEMBOLSO TOTAL-${resultado.refundId} - ${motivo || 'Reembolso procesado'}`,
+          mercadopagoRefundId: String(resultado.refundId || ''),
+          fechaReembolso: new Date(),
         },
       });
 
       this.logger.log(
-        `Reembolso marcado para pago ${id} - PaymentID: ${(pago as any).mercadopagoPaymentId}`
-      );
-      this.logger.warn(
-        'NOTA: Para reembolsos reales, implementar llamada a API REST de MercadoPago'
+        `✅ Reembolso procesado - Pago ${id} - Refund ID: ${resultado.refundId}`
       );
 
       return {
         pago: pagoActualizado,
-        message:
-          'Reembolso marcado en el sistema. En producción se procesará con MercadoPago.',
-        mercadopagoPaymentId: (pago as any).mercadopagoPaymentId as string,
+        reembolso: resultado,
+        message: resultado.simulated
+          ? 'Reembolso simulado en modo sandbox (funcionalidad real implementada)'
+          : 'Reembolso procesado exitosamente en MercadoPago',
       };
     } catch (error) {
       this.logger.error(`Error al procesar reembolso para pago ${id}:`, error);
       throw new BadRequestException(
-        'Error al procesar reembolso en MercadoPago'
+        `Error al procesar reembolso: ${error.message}`
       );
     }
   }
@@ -540,46 +564,56 @@ export class PagosService {
   }
 
   /**
-   * Obtener métodos de pago disponibles (SOLO SANDBOX)
+   * Obtener métodos de pago disponibles (MEJORADO - Datos reales de MercadoPago)
    */
   obtenerMetodosPagoDisponibles() {
-    // 🔒 Verificar que estamos usando credenciales TEST
-    const config = getMercadoPagoConfig();
+    try {
+      // Obtener métodos reales desde el servicio dedicado
+      const metodosReales =
+        this.pagosMercadoPagoService.obtenerMetodosPagoReales();
 
-    return {
-      // ⚠️ SOLO MÉTODOS COMPLETAMENTE FUNCIONALES EN SANDBOX
-      metodos: {
-        MERCADOPAGO_CREDIT_CARD:
-          MERCADOPAGO_PAYMENT_METHODS.MERCADOPAGO_CREDIT_CARD,
-        MERCADOPAGO_DEBIT_CARD:
-          MERCADOPAGO_PAYMENT_METHODS.MERCADOPAGO_DEBIT_CARD,
-      },
-      configuracion: {
-        pais: 'PE',
-        moneda: 'PEN',
-        modoTest: true, // SIEMPRE en modo test
-        advertencia: '🚨 SOLO MODO SANDBOX - No procesa dinero real',
-        credencialesActuales: {
-          accessToken: config.accessToken.substring(0, 20) + '...', // Mostrar solo parte por seguridad
-          publicKey: config.publicKey.substring(0, 20) + '...',
-          sonCredencialesTest:
-            config.accessToken.startsWith('TEST-') &&
-            config.publicKey.startsWith('TEST-'),
+      // Validar configuración actual
+      const configuracionValida =
+        this.pagosMercadoPagoService.validarConfiguracion();
+
+      const config = getMercadoPagoConfig();
+
+      return {
+        // ✅ MÉTODOS COMPLETAMENTE FUNCIONALES EN SANDBOX
+        metodos: metodosReales,
+        configuracion: {
+          pais: 'PE',
+          moneda: 'PEN',
+          modoTest: true, // SIEMPRE en modo test
+          configuracionValida,
+          advertencia: '🚨 SOLO MODO SANDBOX - No procesa dinero real',
+          credencialesActuales: {
+            accessToken: config.accessToken.substring(0, 20) + '...',
+            publicKey: config.publicKey.substring(0, 20) + '...',
+            sonCredencialesTest:
+              config.accessToken.startsWith('TEST-') &&
+              config.publicKey.startsWith('TEST-'),
+          },
         },
-      },
-      // Información importante para desarrolladores
-      importante: {
-        metodosDisponibles:
-          'Solo tarjetas de crédito y débito funcionan correctamente',
-        metodosEliminados:
-          'Yape y PagoEfectivo removidos (no funcionales en sandbox)',
-        tarjetas:
-          'Solo las tarjetas oficiales de la documentación de MercadoPago Perú',
-        seguridad: 'Validación automática de credenciales TEST activa',
-        documentacion:
-          'https://www.mercadopago.com.pe/developers/es/docs/checkout-api/integration-test',
-      },
-    };
+        // Información REAL de la documentación oficial
+        tarjetasDePrueba:
+          MERCADOPAGO_PAYMENT_METHODS.MERCADOPAGO_CREDIT_CARD.tarjetasPrueba,
+        importante: {
+          metodosDisponibles:
+            'Solo tarjetas de crédito y débito funcionan correctamente en sandbox',
+          tarjetas:
+            'Tarjetas oficiales actualizadas de la documentación de MercadoPago Perú 2025',
+          seguridad: 'Validación automática de credenciales TEST activa',
+          documentacion:
+            'https://www.mercadopago.com.pe/developers/es/docs/checkout-api/integration-test',
+        },
+      };
+    } catch (error) {
+      this.logger.error('Error al obtener métodos de pago:', error);
+      throw new BadRequestException(
+        'Error al consultar métodos de pago disponibles'
+      );
+    }
   }
 
   /**
@@ -608,7 +642,7 @@ export class PagosService {
         : undefined,
       identification: dto.comprador.documento
         ? {
-            type: 'DNI',
+            type: this.validarTipoDocumento(dto.comprador.documento),
             number: dto.comprador.documento,
           }
         : undefined,
@@ -653,40 +687,57 @@ export class PagosService {
   }
 
   /**
-   * Mapear método de pago a ID de MercadoPago (SOLO MÉTODOS SANDBOX)
-   * Solo acepta métodos que funcionan correctamente en sandbox
+   * 🎯 MAPEO REALISTA - Mapear método de pago a ID de MercadoPago
+   * NOTA: En producción real, el payment_method_id se debe determinar
+   * dinámicamente según el BIN de la tarjeta usando el frontend
+   * @see https://www.mercadopago.com/developers/es/reference/payment_methods/_payment_methods/get
    */
   private mapearMetodoPago(metodoPago: MetodoPago): string {
+    // ⚠️ IMPLEMENTACIÓN SIMPLIFICADA PARA DESARROLLO
+    // En un entorno real, esto debería venir del frontend tras consultar el BIN
     const mapping = {
-      MERCADOPAGO_CREDIT_CARD: 'credit_card',
-      MERCADOPAGO_DEBIT_CARD: 'debit_card',
+      MERCADOPAGO_CREDIT_CARD: 'visa', // En producción: determinado por BIN
+      MERCADOPAGO_DEBIT_CARD: 'visa', // En producción: determinado por BIN
     };
 
     const mappedMethod = mapping[metodoPago as keyof typeof mapping];
 
     if (!mappedMethod) {
       throw new BadRequestException(
-        `Método de pago no soportado en sandbox: ${metodoPago}. ` +
+        `Método de pago no soportado: ${metodoPago}. ` +
           `Métodos disponibles: ${Object.keys(mapping).join(', ')}`
       );
     }
+
+    this.logger.warn(
+      `⚠️ DESARROLLO: Usando payment_method_id fijo '${mappedMethod}'. ` +
+        `En producción, debe determinarse dinámicamente según el BIN de la tarjeta ` +
+        `usando MercadoPago.js en el frontend.`
+    );
 
     return mappedMethod;
   }
 
   /**
-   * Crear un pago directo con MercadoPago CheckoutAPI (sin redirección)
-   * Ideal para tarjetas de prueba y modo sandbox
+   * 🎯 CHECKOUT API OPTIMIZADO - Crear pago directo (sin redirección)
+   * Implementación completa con validaciones y mejor manejo de errores
    */
-  async crearPagoDirectoMercadoPago(dto: {
-    pedidoId: number;
-    token: string; // Token de la tarjeta generado por MercadoPago.js
-    metodoPago: MetodoPago;
-    cuotas?: number;
-    email: string;
-    documento?: string;
-  }) {
-    // Verificar que el pedido existe
+  async crearPagoDirectoMercadoPago(dto: PagoConTarjetaDto) {
+    this.logger.log(
+      `🎯 Iniciando pago Checkout API para pedido ${dto.pedidoId}`
+    );
+
+    // 1. Validar token de tarjeta
+    const tokenValido = this.pagosMercadoPagoService.validarTokenTarjeta(
+      dto.token
+    );
+    if (!tokenValido) {
+      throw new BadRequestException(
+        'Token de tarjeta inválido. Regenere el token desde el frontend.'
+      );
+    }
+
+    // 2. Verificar que el pedido existe
     const pedido = await this.prisma.pedido.findUnique({
       where: { id: dto.pedidoId },
       include: {
@@ -710,21 +761,42 @@ export class PagosService {
       throw new NotFoundException('Pedido no encontrado');
     }
 
+    // 3. Verificar que no hay pagos ya procesados
+    const pagosExistentes = await this.prisma.pago.findMany({
+      where: {
+        pedidoId: dto.pedidoId,
+        estado: { in: ['COMPLETADO', 'PROCESANDO'] },
+      },
+    });
+
+    if (pagosExistentes.length > 0) {
+      throw new BadRequestException(
+        'Este pedido ya tiene pagos procesados o en proceso'
+      );
+    }
+
+    // 4. Validar cuotas si se especifican
+    if (dto.cuotas && dto.cuotas > 12) {
+      throw new BadRequestException(
+        'Máximo 12 cuotas permitidas en MercadoPago Perú'
+      );
+    }
+
     try {
       const payment = new Payment(this.mercadopago);
 
-      // Crear el pago directo con CheckoutAPI
+      // 5. Preparar datos del pago optimizados para Checkout API
       const paymentData = {
         transaction_amount: Number(pedido.total),
         token: dto.token,
-        description: `Pago pedido ${pedido.numero}`,
+        description: `Pago directo pedido ${pedido.numero} - Checkout API`,
         installments: dto.cuotas || 1,
         payment_method_id: this.mapearMetodoPago(dto.metodoPago),
         payer: {
           email: dto.email,
           identification: dto.documento
             ? {
-                type: 'DNI',
+                type: this.validarTipoDocumento(dto.documento),
                 number: dto.documento,
               }
             : undefined,
@@ -733,12 +805,26 @@ export class PagosService {
         metadata: {
           pedido_id: pedido.id.toString(),
           pedido_numero: pedido.numero,
+          tipo_checkout: 'API', // Marcar como Checkout API
+          frontend_origin: 'CHECKOUT_API',
         },
+        // Configuraciones específicas para Checkout API
+        notification_url: getMercadoPagoConfig().webhookUrl,
+        statement_descriptor: 'DELA-PLATFORM',
       };
 
+      this.logger.log(
+        `💳 Procesando pago directo - Monto: S/${pedido.total.toString()} - Cuotas: ${dto.cuotas || 1}`
+      );
+
+      // 6. Crear el pago en MercadoPago
       const pagoMercadoPago = await payment.create({ body: paymentData });
 
-      // Guardar el pago en la base de datos
+      if (!pagoMercadoPago.id) {
+        throw new BadRequestException('Error al crear pago en MercadoPago');
+      }
+
+      // 7. Guardar el pago en la base de datos con información completa
       const pago = await this.prisma.pago.create({
         data: {
           pedidoId: dto.pedidoId,
@@ -747,13 +833,19 @@ export class PagosService {
           estado: this.mapearEstadoDesdeMercadoPago(
             pagoMercadoPago.status || 'pending'
           ),
+          cuotas: dto.cuotas || 1,
+          tipoCheckout: 'CHECKOUT_API',
           mercadopagoPaymentId: pagoMercadoPago.id?.toString(),
           mercadopagoStatus: pagoMercadoPago.status,
           mercadopagoDetail: pagoMercadoPago.status_detail,
-          referencia: `MP-DIRECT-${pagoMercadoPago.id}`,
+          referencia: dto.referencia || `CHECKOUT-API-${pagoMercadoPago.id}`,
           fechaPago: pagoMercadoPago.date_approved
             ? new Date(pagoMercadoPago.date_approved)
             : null,
+          // Información adicional para Checkout API
+          tokenTarjeta: dto.token.substring(0, 10) + '...', // Solo para logs
+          ultimosCuatroDigitos: pagoMercadoPago.card?.last_four_digits,
+          tipoTarjeta: pagoMercadoPago.payment_method_id,
         },
         include: {
           pedido: {
@@ -774,15 +866,19 @@ export class PagosService {
         },
       });
 
-      // Si el pago fue aprobado, actualizar el estado del pedido
+      // 8. Si el pago fue aprobado, actualizar el estado del pedido
       if (pagoMercadoPago.status === 'approved') {
         await this.verificarEstadoPedido(dto.pedidoId);
+        this.logger.log(
+          `✅ Pago aprobado inmediatamente - Pedido ${pedido.numero} confirmado`
+        );
       }
 
       this.logger.log(
-        `Pago directo creado - MP ID: ${pagoMercadoPago.id} - Estado: ${pagoMercadoPago.status}`
+        `🎯 Pago Checkout API creado exitosamente - MP ID: ${pagoMercadoPago.id} - Estado: ${pagoMercadoPago.status}`
       );
 
+      // 9. Respuesta optimizada para frontend
       return {
         pago,
         mercadopago: {
@@ -791,30 +887,84 @@ export class PagosService {
           status_detail: pagoMercadoPago.status_detail,
           date_approved: pagoMercadoPago.date_approved,
           transaction_amount: pagoMercadoPago.transaction_amount,
+          installments: pagoMercadoPago.installments,
+          payment_method_id: pagoMercadoPago.payment_method_id,
+          // Información de la tarjeta (solo últimos 4 dígitos)
+          card: pagoMercadoPago.card
+            ? {
+                first_six_digits: pagoMercadoPago.card.first_six_digits,
+                last_four_digits: pagoMercadoPago.card.last_four_digits,
+              }
+            : null,
+        },
+        checkout_info: {
+          tipo: 'CHECKOUT_API',
+          procesado_directamente: true,
+          requiere_redireccion: false,
+          estado_pedido:
+            pagoMercadoPago.status === 'approved' ? 'CONFIRMADO' : 'PENDIENTE',
         },
       };
     } catch (error) {
-      this.logger.error('Error al crear pago directo con MercadoPago:', error);
+      this.logger.error('❌ Error en Checkout API:', error);
+
+      // Manejo específico de errores de Checkout API
+      if (
+        error.message?.includes('invalid_token') ||
+        error.message?.includes('token')
+      ) {
+        throw new BadRequestException(
+          'Token de tarjeta inválido o expirado. Regenere el token desde el frontend.'
+        );
+      }
+
+      if (error.message?.includes('invalid_payment_method')) {
+        throw new BadRequestException(
+          'Método de pago no válido para Checkout API. Use tarjetas de crédito o débito.'
+        );
+      }
+
+      if (error.message?.includes('cc_rejected_insufficient_amount')) {
+        throw new BadRequestException(
+          'Tarjeta rechazada por fondos insuficientes.'
+        );
+      }
+
+      if (error.message?.includes('cc_rejected_bad_filled_security_code')) {
+        throw new BadRequestException(
+          'Código de seguridad de la tarjeta inválido.'
+        );
+      }
+
+      if (error.message?.includes('cc_rejected_bad_filled_date')) {
+        throw new BadRequestException(
+          'Fecha de vencimiento de la tarjeta inválida.'
+        );
+      }
+
       throw new BadRequestException(
-        `Error al procesar el pago directo: ${error.message || 'Error desconocido'}`
+        `Error al procesar pago con Checkout API: ${error.message || 'Error desconocido'}`
       );
     }
   }
 
   /**
    * Mapear estado de MercadoPago a nuestro estado
+   * Basado en la documentación oficial de Mercado Pago Checkout API
+   * @see https://www.mercadopago.com/developers/es/docs/checkout-api/payment-management/payment-statuses
    */
   private mapearEstadoDesdeMercadoPago(status: string): EstadoPago {
     const mapping = {
-      pending: 'PENDIENTE',
-      approved: 'COMPLETADO',
-      authorized: 'PROCESANDO',
-      in_process: 'PROCESANDO',
-      in_mediation: 'PROCESANDO',
-      rejected: 'FALLIDO',
-      cancelled: 'CANCELADO',
-      refunded: 'REEMBOLSADO',
-      charged_back: 'REEMBOLSADO',
+      // Estados principales de Mercado Pago
+      pending: 'PENDIENTE', // Pago pendiente
+      approved: 'COMPLETADO', // Pago aprobado y completado
+      authorized: 'PROCESANDO', // Pago autorizado (captura manual pendiente)
+      in_process: 'PENDIENTE', // Pago en proceso de verificación
+      in_mediation: 'PENDIENTE', // Pago en mediación
+      rejected: 'FALLIDO', // Pago rechazado
+      cancelled: 'CANCELADO', // Pago cancelado
+      refunded: 'REEMBOLSADO', // Pago reembolsado
+      charged_back: 'REEMBOLSADO', // Contracargo (se trata como reembolso)
     };
 
     return (mapping[status as keyof typeof mapping] ||
@@ -851,5 +1001,105 @@ export class PagosService {
 
       this.logger.log(`Pedido ${pedido.numero} confirmado - Pago completado`);
     }
+  }
+
+  /**
+   * Validar configuración de MercadoPago
+   */
+  async validarConfiguracionMercadoPago() {
+    try {
+      const configuracionValida =
+        await this.pagosMercadoPagoService.validarConfiguracion();
+      const config = getMercadoPagoConfig();
+
+      return {
+        configuracionValida,
+        detalles: {
+          credencialesTest: {
+            accessToken: config.accessToken.startsWith('TEST-'),
+            publicKey: config.publicKey.startsWith('TEST-'),
+          },
+          urls: {
+            success: config.successUrl,
+            failure: config.failureUrl,
+            pending: config.pendingUrl,
+            webhook: config.webhookUrl,
+          },
+          estado: configuracionValida ? 'CONFIGURADO' : 'ERROR_CONFIGURACION',
+          mensaje: configuracionValida
+            ? '✅ MercadoPago configurado correctamente'
+            : '❌ Error en la configuración de MercadoPago',
+        },
+      };
+    } catch (error) {
+      this.logger.error('Error al validar configuración:', error);
+      throw new BadRequestException(
+        'Error al validar la configuración de MercadoPago'
+      );
+    }
+  }
+
+  /**
+   * Obtener estadísticas detalladas de MercadoPago
+   */
+  async obtenerEstadisticasMercadoPago() {
+    try {
+      const estadisticasMP =
+        this.pagosMercadoPagoService.obtenerEstadisticasMercadoPago();
+      const estadisticasLocales = await this.obtenerEstadisticasPagos();
+
+      return {
+        mercadopago: estadisticasMP,
+        estadisticasLocales,
+        resumen: {
+          modoOperacion: 'SANDBOX',
+          ultimaActualizacion: new Date().toISOString(),
+          advertencia: '⚠️ Datos de sandbox - No incluye transacciones reales',
+        },
+      };
+    } catch (error) {
+      this.logger.error('Error al obtener estadísticas de MercadoPago:', error);
+      throw new BadRequestException(
+        'Error al obtener estadísticas de MercadoPago'
+      );
+    }
+  }
+
+  /**
+   * 🎯 CHECKOUT API - Validar token de tarjeta (delegado al servicio dedicado)
+   */
+  validarTokenTarjeta(token: string): boolean {
+    return this.pagosMercadoPagoService.validarTokenTarjeta(token);
+  }
+
+  /**
+   * 🎯 CHECKOUT API - Obtener cuotas disponibles (delegado al servicio dedicado)
+   */
+  obtenerCuotasDisponibles(monto: number, metodoPago?: string) {
+    return this.pagosMercadoPagoService.obtenerCuotasDisponibles(
+      monto,
+      metodoPago
+    );
+  }
+
+  /**
+   * Validar tipo de documento según estándares de Perú
+   * Basado en documentación oficial de MercadoPago
+   */
+  private validarTipoDocumento(documento: string): string {
+    // Validación para Perú según documentación oficial
+    if (documento.length === 8) {
+      return 'DNI'; // Documento Nacional de Identidad (8 dígitos)
+    } else if (documento.length === 11) {
+      return 'RUC'; // Registro Único de Contribuyentes (11 dígitos)
+    } else if (documento.length >= 9 && documento.length <= 12) {
+      return 'CE'; // Carné de Extranjería
+    }
+
+    // Default a DNI si no se puede determinar
+    this.logger.warn(
+      `Tipo de documento no determinado para: ${documento}. Usando DNI por defecto.`
+    );
+    return 'DNI';
   }
 }

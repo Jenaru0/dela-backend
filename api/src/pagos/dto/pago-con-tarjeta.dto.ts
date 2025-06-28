@@ -1,4 +1,12 @@
-import { IsInt, IsEnum, IsString, IsEmail, IsOptional } from 'class-validator';
+import {
+  IsInt,
+  IsEnum,
+  IsString,
+  IsEmail,
+  IsOptional,
+  Min,
+  Max,
+} from 'class-validator';
 import { MetodoPago } from '@prisma/client';
 
 /**
@@ -11,6 +19,7 @@ import { MetodoPago } from '@prisma/client';
  */
 export class PagoConTarjetaDto {
   @IsInt()
+  @Min(1)
   pedidoId: number;
 
   @IsString()
@@ -21,6 +30,8 @@ export class PagoConTarjetaDto {
 
   @IsOptional()
   @IsInt()
+  @Min(1)
+  @Max(12)
   cuotas?: number;
 
   @IsEmail()
@@ -29,4 +40,12 @@ export class PagoConTarjetaDto {
   @IsOptional()
   @IsString()
   documento?: string;
+
+  @IsOptional()
+  @IsString()
+  nombreTarjeta?: string; // Nombre del titular de la tarjeta
+
+  @IsOptional()
+  @IsString()
+  referencia?: string; // Referencia adicional del pago
 }
