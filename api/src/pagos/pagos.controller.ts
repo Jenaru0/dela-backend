@@ -4,39 +4,58 @@ import {
   Post,
   Body,
   Param,
-  Patch,
   Query,
   ParseIntPipe,
   UseGuards,
   Request,
   ForbiddenException,
+  Logger,
 } from '@nestjs/common';
 import { PagosService } from './pagos.service';
-import { CreatePagoDto } from './dto/crear-pago.dto';
-import { UpdatePagoDto } from './dto/update-pago.dto';
+import { PagoConRedireccionDto } from './dto/pago-con-redireccion.dto';
+import { PagoConTarjetaDto } from './dto/pago-con-tarjeta.dto';
+import { WebhookMercadoPagoDto } from './dto/webhook-mercadopago.dto';
 import { FiltrosPagosDto } from './dto/filtros-pagos.dto';
 import { JwtAutenticacionGuard } from '../autenticacion/guards/jwt-autenticacion.guard';
 
 @Controller('pagos')
-@UseGuards(JwtAutenticacionGuard)
 export class PagosController {
+  private readonly logger = new Logger(PagosController.name);
+
   constructor(private readonly pagosService: PagosService) {}
 
-  @Post()
-  async create(@Body() dto: CreatePagoDto, @Request() req) {
-    // Solo admin puede registrar pagos directamente
-    if (req.user.tipoUsuario !== 'ADMIN') {
-      throw new ForbiddenException(
-        'Solo los administradores pueden registrar pagos'
-      );
-    }
+  /**
+   * Crear un pago con redirección a MercadoPago
+   */
+  @Post('con-redireccion')
+  @UseGuards(JwtAutenticacionGuard)
+  async crearPagoConRedireccion(@Body() dto: PagoConRedireccionDto) {
+    // Verificar que el usuario puede crear pagos para este pedido
+    // Por ahora permitimos que cualquier usuario autenticado pueda crear pagos
+    // En producción, deberías verificar que el pedido pertenece al usuario
 
-    return this.pagosService.create(dto);
+    this.logger.log(`Creando pago con redirección para pedido ${dto.pedidoId}`);
+
+    return this.pagosService.crearPagoMercadoPago(dto);
   }
 
+  /**
+   * Webhook de MercadoPago para notificaciones de pago
+   * Este endpoint NO requiere autenticación ya que es llamado por MercadoPago
+   */
+  @Post('webhook')
+  async webhookMercadoPago(@Body() webhookData: WebhookMercadoPagoDto) {
+    this.logger.log(`Webhook MercadoPago recibido: ${webhookData.type}`);
+
+    return this.pagosService.procesarWebhook(webhookData);
+  }
+
+  /**
+   * Obtener todos los pagos (solo admin)
+   */
   @Get()
+  @UseGuards(JwtAutenticacionGuard)
   async findAll(@Query() filtros: FiltrosPagosDto, @Request() req) {
-    // Solo admin puede ver todos los pagos
     if (req.user.tipoUsuario !== 'ADMIN') {
       throw new ForbiddenException(
         'Solo los administradores pueden ver todos los pagos'
@@ -46,7 +65,11 @@ export class PagosController {
     return this.pagosService.findAll(filtros);
   }
 
+  /**
+   * Obtener estadísticas de pagos (solo admin)
+   */
   @Get('estadisticas')
+  @UseGuards(JwtAutenticacionGuard)
   async obtenerEstadisticas(@Request() req) {
     if (req.user.tipoUsuario !== 'ADMIN') {
       throw new ForbiddenException(
@@ -57,15 +80,50 @@ export class PagosController {
     return this.pagosService.obtenerEstadisticasPagos();
   }
 
+  /**
+   * Obtener métodos de pago disponibles
+   */
+  @Get('metodos-pago')
+  @UseGuards(JwtAutenticacionGuard)
+  obtenerMetodosPago() {
+    return this.pagosService.obtenerMetodosPagoDisponibles();
+  }
+
+  /**
+   * Obtener estado de pago desde MercadoPago
+   */
+  @Get(':id/estado-mercadopago')
+  @UseGuards(JwtAutenticacionGuard)
+  async obtenerEstadoMercadoPago(
+    @Param('id', ParseIntPipe) id: number,
+    @Request() req
+  ) {
+    const pago = await this.pagosService.findOne(id);
+
+    // Verificar permisos
+    if (
+      req.user.tipoUsuario !== 'ADMIN' &&
+      pago.pedido.usuario.id !== req.user.id
+    ) {
+      throw new ForbiddenException('No tienes acceso a este pago');
+    }
+
+    return this.pagosService.obtenerEstadoPagoMercadoPago(id);
+  }
+
+  /**
+   * Obtener pagos por pedido
+   */
   @Get('pedido/:pedidoId')
+  @UseGuards(JwtAutenticacionGuard)
   async findByPedido(
     @Param('pedidoId', ParseIntPipe) pedidoId: number,
     @Request() req
   ) {
-    // Verificar que el usuario puede acceder a este pedido
+    // Verificar permisos
     if (req.user.tipoUsuario !== 'ADMIN') {
-      // Aquí deberíamos verificar que el pedido pertenece al usuario
-      // Por simplicidad, asumimos que solo admin puede ver pagos por ahora
+      // Aquí deberías verificar que el pedido pertenece al usuario
+      // Por simplicidad, solo permitimos admin por ahora
       throw new ForbiddenException(
         'Solo los administradores pueden ver pagos de pedidos'
       );
@@ -74,11 +132,15 @@ export class PagosController {
     return this.pagosService.findByPedido(pedidoId);
   }
 
+  /**
+   * Obtener un pago específico
+   */
   @Get(':id')
+  @UseGuards(JwtAutenticacionGuard)
   async findOne(@Param('id', ParseIntPipe) id: number, @Request() req) {
     const pago = await this.pagosService.findOne(id);
 
-    // Solo admin o el dueño del pedido pueden ver el pago
+    // Verificar permisos
     if (
       req.user.tipoUsuario !== 'ADMIN' &&
       pago.pedido.usuario.id !== req.user.id
@@ -89,52 +151,12 @@ export class PagosController {
     return pago;
   }
 
-  @Patch(':id')
-  async update(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() dto: UpdatePagoDto,
-    @Request() req
-  ) {
-    if (req.user.tipoUsuario !== 'ADMIN') {
-      throw new ForbiddenException(
-        'Solo los administradores pueden actualizar pagos'
-      );
-    }
-
-    return this.pagosService.update(id, dto);
-  }
-  @Post(':id/confirmar')
-  async confirmarPago(
-    @Param('id', ParseIntPipe) id: number,
-    @Body('referencia') referencia?: string,
-    @Request() req?
-  ) {
-    if (req.user.tipoUsuario !== 'ADMIN') {
-      throw new ForbiddenException(
-        'Solo los administradores pueden confirmar pagos'
-      );
-    }
-
-    return this.pagosService.confirmarPago(id, referencia);
-  }
-
-  @Post(':id/rechazar')
-  async rechazarPago(
-    @Param('id', ParseIntPipe) id: number,
-    @Body('motivo') motivo?: string,
-    @Request() req?
-  ) {
-    if (req.user.tipoUsuario !== 'ADMIN') {
-      throw new ForbiddenException(
-        'Solo los administradores pueden rechazar pagos'
-      );
-    }
-
-    return this.pagosService.rechazarPago(id, motivo);
-  }
-
+  /**
+   * Reembolsar un pago (solo admin)
+   */
   @Post(':id/reembolsar')
-  async procesarReembolso(
+  @UseGuards(JwtAutenticacionGuard)
+  async reembolsarPago(
     @Param('id', ParseIntPipe) id: number,
     @Body('motivo') motivo?: string,
     @Request() req?
@@ -145,6 +167,26 @@ export class PagosController {
       );
     }
 
-    return this.pagosService.procesarReembolso(id, motivo);
+    return this.pagosService.reembolsarPago(id, motivo);
+  }
+
+  /**
+   * Obtener métodos de pago disponibles (público para desarrollo)
+   */
+  @Get('metodos-disponibles')
+  obtenerMetodosPagoDisponibles() {
+    return this.pagosService.obtenerMetodosPagoDisponibles();
+  }
+
+  /**
+   * Crear pago directo con tarjeta (Checkout API)
+   */
+  @Post('con-tarjeta')
+  @UseGuards(JwtAutenticacionGuard)
+  async crearPagoConTarjeta(@Body() dto: PagoConTarjetaDto) {
+    this.logger.log(
+      `Creando pago directo con tarjeta para pedido ${dto.pedidoId}`
+    );
+    return this.pagosService.crearPagoDirectoMercadoPago(dto);
   }
 }
