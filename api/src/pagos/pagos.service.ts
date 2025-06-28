@@ -660,9 +660,6 @@ export class PagosService {
     const mapping = {
       MERCADOPAGO_CREDIT_CARD: 'credit_card',
       MERCADOPAGO_DEBIT_CARD: 'debit_card',
-      // ❌ MÉTODOS REMOVIDOS (no funcionales en sandbox):
-      // MERCADOPAGO_YAPE: 'yape', // No disponible en sandbox estándar
-      // MERCADOPAGO_CASH: 'pagoefectivo', // Solo simulación, no útil
     };
 
     const mappedMethod = mapping[metodoPago as keyof typeof mapping];

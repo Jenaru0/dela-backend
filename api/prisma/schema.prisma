@@ -74,7 +74,6 @@ model Producto {
   precioUnitario   Decimal           @db.Decimal(10, 2)
   precioAnterior   Decimal?          @db.Decimal(10, 2)
   stock            Int               @default(0)
-  stockMinimo      Int               @default(0)
   unidadMedida     String?           @db.VarChar(20)
   peso             Decimal?          @db.Decimal(8, 3)
   infoNutricional  Json?
@@ -83,6 +82,7 @@ model Producto {
   estado           EstadoProducto    @default(ACTIVO)
   creadoEn         DateTime          @default(now())
   actualizadoEn    DateTime          @updatedAt
+  stockMinimo      Int               @default(0)
   carritoItems     CarritoItem[]
   detallePedidos   DetallePedido[]
   favoritos        Favorito[]
@@ -260,29 +260,22 @@ model DetallePedido {
 }
 
 model Pago {
-  id                    Int        @id @default(autoincrement())
-  pedidoId              Int
-  metodoPago            MetodoPago
-  monto                 Decimal    @db.Decimal(10, 2)
-  estado                EstadoPago @default(PENDIENTE)
-  
-  // Campos específicos de MercadoPago
-  mercadopagoId         String?    @unique @db.VarChar(255) // ID de la preferencia de MercadoPago
-  mercadopagoPaymentId  String?    @db.VarChar(255)         // ID del pago en MercadoPago
-  mercadopagoStatus     String?    @db.VarChar(50)          // Estado del pago en MercadoPago
-  mercadopagoDetail     String?    @db.VarChar(255)         // Detalle del pago de MercadoPago
-  
-  // URLs de redirección
-  initPoint             String?    @db.Text                 // URL para iniciar el pago
-  sandboxInitPoint      String?    @db.Text                 // URL para sandbox
-  
-  // Información adicional
-  referencia            String?    @db.VarChar(255)         // Referencia externa
-  fechaPago             DateTime?
-  creadoEn              DateTime   @default(now())
-  actualizadoEn         DateTime   @default(now()) @updatedAt
-  
-  pedido                Pedido     @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  id                   Int        @id @default(autoincrement())
+  pedidoId             Int
+  metodoPago           MetodoPago
+  monto                Decimal    @db.Decimal(10, 2)
+  estado               EstadoPago @default(PENDIENTE)
+  referencia           String?    @db.VarChar(255)
+  fechaPago            DateTime?
+  creadoEn             DateTime   @default(now())
+  actualizadoEn        DateTime   @default(now()) @updatedAt
+  initPoint            String?
+  mercadopagoDetail    String?    @db.VarChar(255)
+  mercadopagoId        String?    @unique @db.VarChar(255)
+  mercadopagoPaymentId String?    @db.VarChar(255)
+  mercadopagoStatus    String?    @db.VarChar(50)
+  sandboxInitPoint     String?
+  pedido               Pedido     @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
 
   @@index([pedidoId])
   @@index([mercadopagoId])
@@ -368,10 +361,8 @@ enum EstadoPago {
 }
 
 enum MetodoPago {
-  MERCADOPAGO_CREDIT_CARD  // ✅ Tarjeta de crédito (Visa, Mastercard, American Express) - FUNCIONA EN SANDBOX
-  MERCADOPAGO_DEBIT_CARD   // ✅ Tarjeta de débito (Visa Débito, Mastercard Débito) - FUNCIONA EN SANDBOX
-  MERCADOPAGO_YAPE         // ❌ Yape (billetera digital) - NO DISPONIBLE EN SANDBOX ESTÁNDAR
-  MERCADOPAGO_CASH         // ❌ Efectivo en agentes - SOLO SIMULACIÓN EN SANDBOX (no útil)
+  MERCADOPAGO_CREDIT_CARD
+  MERCADOPAGO_DEBIT_CARD
 }
 
 enum MetodoEnvio {
