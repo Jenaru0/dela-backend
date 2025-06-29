@@ -1,21 +1,8 @@
-import {
-  IsInt,
-  IsEnum,
-  IsString,
-  IsEmail,
-  IsOptional,
-  Min,
-  Max,
-} from 'class-validator';
-import { MetodoPago } from '@prisma/client';
+import { IsInt, IsString, IsEmail, IsOptional, Min } from 'class-validator';
 
 /**
- * DTO para crear pagos con tarjeta (Checkout API)
- *
- * Este DTO se usa cuando el usuario ingresa los datos de su tarjeta
- * directamente en tu sitio web y MercadoPago.js genera un token.
- *
- * Flujo: Usuario → Tu Web → Token → API MercadoPago
+ * DTO para MercadoPago Checkout API
+ * Solo campos REALES requeridos por MercadoPago
  */
 export class PagoConTarjetaDto {
   @IsInt()
@@ -23,29 +10,12 @@ export class PagoConTarjetaDto {
   pedidoId: number;
 
   @IsString()
-  token: string; // Token de seguridad generado por MercadoPago.js
-
-  @IsEnum(MetodoPago)
-  metodoPago: MetodoPago;
-
-  @IsOptional()
-  @IsInt()
-  @Min(1)
-  @Max(12)
-  cuotas?: number;
+  token: string; // Token generado por MercadoPago.js (OBLIGATORIO)
 
   @IsEmail()
-  email: string;
+  email: string; // Email del pagador (OBLIGATORIO para MP)
 
   @IsOptional()
   @IsString()
-  documento?: string;
-
-  @IsOptional()
-  @IsString()
-  nombreTarjeta?: string; // Nombre del titular de la tarjeta
-
-  @IsOptional()
-  @IsString()
-  referencia?: string; // Referencia adicional del pago
+  documento?: string; // Documento del pagador (opcional pero recomendado)
 }

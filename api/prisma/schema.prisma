@@ -74,7 +74,6 @@ model Producto {
   precioUnitario   Decimal           @db.Decimal(10, 2)
   precioAnterior   Decimal?          @db.Decimal(10, 2)
   stock            Int               @default(0)
-  stockMinimo      Int               @default(0)
   unidadMedida     String?           @db.VarChar(20)
   peso             Decimal?          @db.Decimal(8, 3)
   infoNutricional  Json?
@@ -83,6 +82,7 @@ model Producto {
   estado           EstadoProducto    @default(ACTIVO)
   creadoEn         DateTime          @default(now())
   actualizadoEn    DateTime          @updatedAt
+  stockMinimo      Int               @default(0)
   carritoItems     CarritoItem[]
   detallePedidos   DetallePedido[]
   favoritos        Favorito[]
@@ -260,33 +260,22 @@ model DetallePedido {
 }
 
 model Pago {
-  id                     Int         @id @default(autoincrement())
-  pedidoId               Int
-  metodoPago             MetodoPago
-  monto                  Decimal     @db.Decimal(10, 2)
-  estado                 EstadoPago  @default(PENDIENTE)
-  referencia             String?     @db.VarChar(255)
-  fechaPago              DateTime?
-  fechaReembolso         DateTime?
-  cuotas                 Int?        @default(1)
-  tipoCheckout           TipoCheckout @default(CHECKOUT_API)
-  creadoEn               DateTime    @default(now())
-  actualizadoEn          DateTime    @default(now()) @updatedAt
-  
-  // 🔑 ID del pago en MercadoPago (CRÍTICO para webhooks)
-  mercadopagoId          String?     @db.VarChar(255)  // ID del pago en MercadoPago
-  
-  // Información de tarjeta para display (NO almacena datos sensibles)
-  ultimosCuatroDigitos   String?     @db.VarChar(4)    // Solo para mostrar al usuario
-  tipoTarjeta            String?     @db.VarChar(20)   // visa, mastercard, etc.
-  tokenTarjeta           String?     @db.VarChar(255)  // Token de referencia (solo para logs)
-  
-  pedido                 Pedido      @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  id                   Int        @id @default(autoincrement())
+  pedidoId             Int
+  monto                Decimal    @db.Decimal(10, 2)
+  estado               EstadoPago @default(PENDIENTE)
+  fechaPago            DateTime?
+  creadoEn             DateTime   @default(now())
+  actualizadoEn        DateTime   @default(now()) @updatedAt
+  mercadopagoId        String?    @db.VarChar(255)
+  cuotas               Int?       @default(1)
+  ultimosCuatroDigitos String?    @db.VarChar(4)
+  paymentMethodId      String?    @db.VarChar(50)
+  pedido               Pedido     @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
 
   @@index([pedidoId])
   @@index([estado])
-  @@index([tipoCheckout])
-  @@index([mercadopagoId])  // 🔍 Índice para búsquedas por MercadoPago ID
+  @@index([mercadopagoId])
   @@map("pago")
 }
 
@@ -359,27 +348,26 @@ enum EstadoResena {
 }
 
 enum EstadoPago {
-  PENDIENTE     // pending, in_process, in_mediation
-  PROCESANDO    // authorized (captura manual)
-  COMPLETADO    // approved
-  FALLIDO       // rejected
-  CANCELADO     // cancelled
-  REEMBOLSADO   // refunded, charged_back
+  PENDIENTE
+  PROCESANDO
+  COMPLETADO
+  FALLIDO
+  CANCELADO
+  REEMBOLSADO
 }
 
 enum MetodoPago {
-  MERCADOPAGO_CREDIT_CARD
-  MERCADOPAGO_DEBIT_CARD
-  // Preparado para futuras expansiones
-  MERCADOPAGO_YAPE
-  MERCADOPAGO_EFECTIVO
-  TRANSFERENCIA_BANCARIA
-}
-
-enum TipoCheckout {
-  CHECKOUT_API      // Pago directo sin redirección
-  CHECKOUT_PRO      // Pago con redirección
-  CHECKOUT_TRANSPARENTE // Futuro
+  visa
+  master
+  amex
+  naranja
+  cabal
+  shopping
+  cencosud
+  cmr
+  argencard
+  diners
+  tarshop
 }
 
 enum MetodoEnvio {

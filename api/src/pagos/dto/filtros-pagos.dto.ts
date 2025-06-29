@@ -1,5 +1,4 @@
-import { IsOptional, IsEnum, IsInt, IsString } from 'class-validator';
-import { EstadoPago, MetodoPago } from '@prisma/client';
+import { IsOptional, IsInt } from 'class-validator';
 
 export class FiltrosPagosDto {
   @IsOptional()
@@ -7,26 +6,6 @@ export class FiltrosPagosDto {
   pedidoId?: number;
 
   @IsOptional()
-  @IsEnum(EstadoPago)
-  estado?: EstadoPago;
-
-  @IsOptional()
-  @IsEnum(MetodoPago)
-  metodoPago?: MetodoPago;
-
-  @IsOptional()
-  @IsString()
-  fechaInicio?: string;
-
-  @IsOptional()
-  @IsString()
-  fechaFin?: string;
-
-  @IsOptional()
   @IsInt()
-  page?: number = 1;
-
-  @IsOptional()
-  @IsInt()
-  limit?: number = 10;
+  usuarioId?: number;
 }

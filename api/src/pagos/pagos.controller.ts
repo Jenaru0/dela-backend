@@ -154,21 +154,4 @@ export class PagosController {
 
     return this.pagosService.obtenerCuotasDisponibles(montoNumerico);
   }
-
-  /**
-   * CHECKOUT API - Validar token de tarjeta
-   */
-  @Post('checkout-api/validar-token')
-  @UseGuards(JwtAutenticacionGuard)
-  validarTokenTarjeta(@Body('token') token: string) {
-    if (!token) {
-      throw new BadRequestException('Token es requerido');
-    }
-
-    const valido = this.pagosService.validarTokenTarjeta(token);
-    return {
-      valido,
-      mensaje: valido ? 'Token válido' : 'Token inválido',
-    };
-  }
 }
