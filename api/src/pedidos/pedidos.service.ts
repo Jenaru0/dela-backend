@@ -18,34 +18,23 @@ export class PedidosService {
     try {
       return {
         ...pedido,
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
         subtotal: parseFloat(pedido.subtotal?.toString() || '0'),
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
         impuestos: parseFloat(pedido.impuestos?.toString() || '0'),
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-        costoEnvio: parseFloat(pedido.envioMonto?.toString() || '0'), // Mapear envioMonto a costoEnvio
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-        descuento: parseFloat(pedido.descuentoMonto?.toString() || '0'), // Mapear descuentoMonto a descuento
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+        costoEnvio: parseFloat(pedido.envioMonto?.toString() || '0'),
+        descuento: parseFloat(pedido.descuentoMonto?.toString() || '0'),
         total: parseFloat(pedido.total?.toString() || '0'),
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         detallePedidos:
           pedido.detallePedidos?.map((detalle: any) => {
             try {
               return {
                 ...detalle,
-                // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-                precio: parseFloat(detalle.precioUnitario?.toString() || '0'), // Mapear precioUnitario a precio
-                // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+
+                precio: parseFloat(detalle.precioUnitario?.toString() || '0'),
                 subtotal: parseFloat(detalle.subtotal?.toString() || '0'),
-                // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
                 producto: {
                   ...detalle.producto,
-                  // Mapear la imagen principal si existe
-                  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
                   imagen: detalle.producto?.imagenes?.[0]?.url || null,
                   precio: parseFloat(
-                    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
                     detalle.producto?.precioUnitario?.toString() || '0'
                   ),
                 },
