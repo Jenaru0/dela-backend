@@ -8,7 +8,6 @@ import { UsuariosModule } from './usuarios/usuarios.module';
 import { CategoriaModule } from './categoria/categoria.module';
 import { CatalogoModule } from './catalogo/catalogo.module';
 import { FavoritosModule } from './favorito/favoritos.module';
-import { FavoritosController } from './favorito/favoritos.controller';
 import { CarritoModule } from './carrito/carrito.module';
 import { DireccionesModule } from './direcciones/direcciones.module';
 import { NewsletterModule } from './newsletter/newsletter.module';
@@ -38,7 +37,7 @@ import { PagosModule } from './pagos/pagos.module';
     PromocionesModule,
     PagosModule,
   ],
-  controllers: [AppController, FavoritosController],
+  controllers: [AppController],
   providers: [AppService],
 })
 export class AppModule {}

@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 import { AdminController } from './admin.controller';
-import { PrismaModule } from '../prisma/prisma.module';
 import { UsuariosModule } from '../usuarios/usuarios.module';
 import { DireccionesModule } from '../direcciones/direcciones.module';
 import { ReclamosModule } from '../reclamos/reclamos.module';
@@ -9,7 +8,6 @@ import { FavoritosModule } from '../favorito/favoritos.module';
 
 @Module({
   imports: [
-    PrismaModule,
     UsuariosModule,
     DireccionesModule,
     ReclamosModule,
