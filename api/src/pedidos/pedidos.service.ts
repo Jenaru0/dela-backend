@@ -14,42 +14,52 @@ export class PedidosService {
   constructor(private readonly prisma: PrismaService) {}
 
   // Helper para convertir Decimals a numbers
-
   private convertDecimalFields(pedido: any) {
-    return {
-      ...pedido,
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-      subtotal: parseFloat(pedido.subtotal?.toString() || '0'),
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-      impuestos: parseFloat(pedido.impuestos?.toString() || '0'),
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-      costoEnvio: parseFloat(pedido.envioMonto?.toString() || '0'), // Mapear envioMonto a costoEnvio
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-      descuento: parseFloat(pedido.descuentoMonto?.toString() || '0'), // Mapear descuentoMonto a descuento
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-      total: parseFloat(pedido.total?.toString() || '0'),
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      detallePedidos:
-        pedido.detallePedidos?.map((detalle: any) => ({
-          ...detalle,
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-          precio: parseFloat(detalle.precioUnitario?.toString() || '0'), // Mapear precioUnitario a precio
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-          subtotal: parseFloat(detalle.subtotal?.toString() || '0'),
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-          producto: {
-            ...detalle.producto,
-            // Mapear la imagen principal si existe
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-            imagen: detalle.producto?.imagenes?.[0]?.url || null,
-
-            precio: parseFloat(
-              // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-              detalle.producto?.precioUnitario?.toString() || '0'
-            ),
-          },
-        })) || [],
-    };
+    try {
+      return {
+        ...pedido,
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+        subtotal: parseFloat(pedido.subtotal?.toString() || '0'),
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+        impuestos: parseFloat(pedido.impuestos?.toString() || '0'),
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+        costoEnvio: parseFloat(pedido.envioMonto?.toString() || '0'), // Mapear envioMonto a costoEnvio
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+        descuento: parseFloat(pedido.descuentoMonto?.toString() || '0'), // Mapear descuentoMonto a descuento
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+        total: parseFloat(pedido.total?.toString() || '0'),
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        detallePedidos:
+          pedido.detallePedidos?.map((detalle: any) => {
+            try {
+              return {
+                ...detalle,
+                // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+                precio: parseFloat(detalle.precioUnitario?.toString() || '0'), // Mapear precioUnitario a precio
+                // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+                subtotal: parseFloat(detalle.subtotal?.toString() || '0'),
+                // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+                producto: {
+                  ...detalle.producto,
+                  // Mapear la imagen principal si existe
+                  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+                  imagen: detalle.producto?.imagenes?.[0]?.url || null,
+                  precio: parseFloat(
+                    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+                    detalle.producto?.precioUnitario?.toString() || '0'
+                  ),
+                },
+              };
+            } catch (detalleError) {
+              console.error('❌ Error al convertir detalle:', detalleError);
+              return detalle; // Devolver original si hay error
+            }
+          }) || [],
+      };
+    } catch (error) {
+      console.error('❌ Error al convertir campos decimales:', error);
+      return pedido; // Devolver original si hay error
+    }
   }
 
   async create(dto: CreatePedidoDto) {
@@ -233,8 +243,13 @@ export class PedidosService {
       this.prisma.pedido.count({ where }),
     ]);
 
+    // Convertir campos decimales
+    const pedidosConvertidos = pedidos.map((pedido) =>
+      this.convertDecimalFields(pedido)
+    );
+
     return {
-      data: pedidos,
+      data: pedidosConvertidos,
       page,
       limit,
       total,
@@ -320,45 +335,68 @@ export class PedidosService {
       page,
       totalPages: Math.ceil(total / limit),
     };
-  }
-
-  // Obtener todas las órdenes para admin (sin paginación, para estadísticas)
+  } // Obtener todas las órdenes para admin (sin paginación, para estadísticas)
   async findAllForAdmin() {
-    const pedidos = await this.prisma.pedido.findMany({
-      include: {
-        usuario: {
-          select: {
-            id: true,
-            nombres: true,
-            apellidos: true,
-            email: true,
-            celular: true,
+    try {
+      console.log('🔍 Backend Service: Iniciando findAllForAdmin');
+
+      const pedidos = await this.prisma.pedido.findMany({
+        include: {
+          usuario: {
+            select: {
+              id: true,
+              nombres: true,
+              apellidos: true,
+              email: true,
+              celular: true,
+            },
           },
-        },
-        direccion: true,
-        detallePedidos: {
-          include: {
-            producto: {
-              select: {
-                id: true,
-                nombre: true,
-                sku: true,
-                imagenes: {
-                  where: { principal: true },
-                  select: { url: true, altText: true },
+          direccion: true,
+          detallePedidos: {
+            include: {
+              producto: {
+                select: {
+                  id: true,
+                  nombre: true,
+                  sku: true,
+                  precioUnitario: true,
+                  imagenes: {
+                    where: { principal: true },
+                    select: { url: true, altText: true },
+                  },
                 },
               },
             },
           },
+          pagos: true,
         },
-        pagos: true,
-      },
-      orderBy: { fechaPedido: 'desc' },
-    });
+        orderBy: { fechaPedido: 'desc' },
+      });
 
-    return {
-      data: pedidos.map((pedido) => this.convertDecimalFields(pedido)),
-    };
+      console.log(
+        `✅ Backend Service: ${pedidos.length} pedidos obtenidos de la BD`
+      );
+
+      // Convertir campos decimales
+      const pedidosConvertidos = pedidos.map((pedido) =>
+        this.convertDecimalFields(pedido)
+      );
+
+      const result = {
+        data: pedidosConvertidos,
+        total: pedidos.length,
+      };
+
+      console.log('✅ Backend Service: Resultado preparado correctamente');
+      return result;
+    } catch (error) {
+      console.error('❌ Backend Service: Error en findAllForAdmin:', error);
+      console.error('❌ Backend Service: Error message:', error.message);
+      console.error('❌ Backend Service: Error stack:', error.stack);
+
+      // Lanzar el error para que se vea en los logs
+      throw error;
+    }
   }
 
   async findOne(id: number) {
@@ -456,29 +494,115 @@ export class PedidosService {
 
     return this.update(id, updateData);
   }
-
   async findByUser(usuarioId: number): Promise<any[]> {
+    try {
+      console.log(
+        '🔍 Backend Service: findByUser - iniciando para usuario:',
+        usuarioId
+      );
+
+      // Verificar que el usuarioId es válido
+      if (!usuarioId || usuarioId <= 0) {
+        console.error('❌ UsuarioId inválido:', usuarioId);
+        throw new Error('ID de usuario inválido');
+      }
+
+      // Consulta simple sin relaciones primero
+      console.log('🔍 Verificando si existen pedidos para el usuario...');
+      const pedidosCount = await this.prisma.pedido.count({
+        where: { usuarioId: usuarioId },
+      });
+      console.log(
+        `✅ Pedidos encontrados para usuario ${usuarioId}: ${pedidosCount}`
+      );
+
+      if (pedidosCount === 0) {
+        console.log('ℹ️  No hay pedidos para este usuario');
+        return [];
+      }
+
+      // Consulta básica sin relaciones complejas
+      console.log('🔍 Obteniendo pedidos básicos del usuario...');
+      const pedidos = await this.prisma.pedido.findMany({
+        where: {
+          usuarioId: usuarioId,
+        },
+        orderBy: {
+          creadoEn: 'desc',
+        },
+      });
+
+      console.log(`✅ Pedidos básicos obtenidos: ${pedidos.length}`);
+      return pedidos;
+    } catch (error) {
+      console.error('❌ Backend Service: Error en findByUser:', error);
+      console.error('❌ Backend Service: Error stack:', error.stack);
+      throw error;
+    }
+  }
+
+  // Obtener todos los pedidos sin paginación (para dashboard)
+  async findAllSimple(filtros: FiltrosPedidosDto) {
+    const { usuarioId, estado, fechaInicio, fechaFin } = filtros;
+
+    const where: Prisma.PedidoWhereInput = {};
+
+    if (usuarioId) where.usuarioId = usuarioId;
+    if (estado) where.estado = estado;
+
+    if (fechaInicio || fechaFin) {
+      where.fechaPedido = {};
+      if (fechaInicio) where.fechaPedido.gte = new Date(fechaInicio);
+      if (fechaFin) where.fechaPedido.lte = new Date(fechaFin);
+    }
+
     const pedidos = await this.prisma.pedido.findMany({
-      where: {
-        usuarioId: usuarioId,
-      },
+      where,
       include: {
+        usuario: {
+          select: { id: true, nombres: true, apellidos: true, email: true },
+        },
+        direccion: true,
         detallePedidos: {
           include: {
             producto: {
-              include: {
-                imagenes: true,
+              select: {
+                id: true,
+                nombre: true,
+                sku: true,
+                precioUnitario: true,
+                imagenes: {
+                  where: { principal: true },
+                  select: { url: true, altText: true },
+                },
               },
             },
           },
         },
-        direccion: true,
       },
-      orderBy: {
-        creadoEn: 'desc',
-      },
+      orderBy: { fechaPedido: 'desc' },
     });
 
+    // Convertir campos decimales
     return pedidos.map((pedido) => this.convertDecimalFields(pedido));
+  }
+
+  // Método simple para verificar la conexión a BD
+  async verificarConexion() {
+    try {
+      console.log('🔍 Verificando conexión a base de datos...');
+      const count = await this.prisma.pedido.count();
+      console.log(`✅ Conexión exitosa. Total pedidos en BD: ${count}`);
+      return { success: true, count };
+    } catch (error) {
+      console.error('❌ Error de conexión a BD:', error);
+      return {
+        success: false,
+        error:
+          error instanceof Error
+            ? error.message
+            : 'Error desconocido de conexión',
+      };
+    }
   }
 }

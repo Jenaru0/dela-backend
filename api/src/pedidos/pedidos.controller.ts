@@ -85,13 +85,35 @@ export class PedidosController {
 
   @Get('admin/todos')
   async findAllForAdmin(@Request() req: AuthenticatedRequest) {
+    console.log('🔍 Backend Controller: Iniciando findAllForAdmin');
+    console.log('🔍 Backend Controller: Usuario:', req.user);
+
     if (req.user.tipoUsuario !== 'ADMIN') {
+      console.error(
+        '❌ Backend Controller: Usuario no es ADMIN:',
+        req.user.tipoUsuario
+      );
       throw new ForbiddenException(
         'Solo administradores pueden acceder a esta información.'
       );
     }
 
-    return this.pedidosService.findAllForAdmin();
+    try {
+      console.log('🔍 Backend Controller: Llamando al servicio...');
+      const result = await this.pedidosService.findAllForAdmin();
+      console.log('✅ Backend Controller: Resultado del servicio:', result);
+
+      const response = {
+        mensaje: 'Pedidos obtenidos correctamente',
+        data: result.data,
+      };
+      console.log('✅ Backend Controller: Respuesta final:', response);
+
+      return response;
+    } catch (error) {
+      console.error('❌ Backend Controller: Error:', error);
+      throw error;
+    }
   }
 
   @Get()
@@ -104,7 +126,27 @@ export class PedidosController {
       filtros.usuarioId = req.user.id;
     }
 
-    return this.pedidosService.findAll(filtros);
+    // Para el dashboard que no necesita paginación, simplificar
+    if (!filtros.page && !filtros.limit) {
+      // Sin paginación - devolver todos los pedidos
+      const result = await this.pedidosService.findAllSimple(filtros);
+      return {
+        mensaje: 'Pedidos obtenidos correctamente',
+        data: result,
+      };
+    }
+
+    // Con paginación - devolver formato completo
+    const result = await this.pedidosService.findAll(filtros);
+    return {
+      mensaje: 'Pedidos obtenidos correctamente',
+      data: result.data,
+      pagination: {
+        page: result.page,
+        limit: result.limit,
+        total: result.total,
+      },
+    };
   }
 
   @Get(':id')

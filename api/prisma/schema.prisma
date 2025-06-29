@@ -358,6 +358,8 @@ enum MetodoPago {
   EFECTIVO
   YAPE
   PLIN
+  MERCADOPAGO_CREDIT_CARD
+  MERCADOPAGO_DEBIT_CARD
 }
 
 enum MetodoEnvio {
