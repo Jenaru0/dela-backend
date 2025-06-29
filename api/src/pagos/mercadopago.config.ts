@@ -28,7 +28,6 @@ export const getMercadoPagoConfig = (): MercadoPagoConfiguration => {
   const webhookUrl =
     process.env.MP_WEBHOOK_URL || 'https://tu-dominio.com/pagos/webhook';
 
-  // ⚠️ IMPORTANTE: Para Perú, asegurar HTTPS y dominio público
   if (!accessToken.startsWith('TEST-') && webhookUrl.includes('localhost')) {
     throw new Error(
       '🚨 PRODUCCIÓN PERÚ: Las URLs de webhook deben ser HTTPS públicas. ' +
@@ -43,7 +42,6 @@ export const getMercadoPagoConfig = (): MercadoPagoConfiguration => {
   };
 };
 
-// Estados de pago de MercadoPago mapeados a nuestros estados
 export const MERCADOPAGO_STATUS_MAPPING = {
   pending: 'PENDIENTE',
   approved: 'COMPLETADO',
