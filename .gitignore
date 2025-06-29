@@ -1,0 +1,68 @@
+# DEPENDENCIAS Y PAQUETES
+node_modules/
+.pnp
+.pnp.js
+yarn.lock
+pnpm-lock.yaml
+
+# ARCHIVOS DE CONSTRUCCIÓN Y PRODUCCIÓN
+dist/
+build/
+out/
+.next/
+
+# VARIABLES DE ENTORNO Y SECRETOS
+.env
+.env.local
+.env.development
+.env.development.local
+.env.test
+.env.test.local
+.env.production
+.env.production.local
+.env.staging
+.env.*.local
+
+# BASE DE DATOS LOCAL
+*.db
+*.sqlite
+*.sqlite3
+
+# PRISMA
+prisma/client/
+prisma/migrations/**/migration.sql
+
+# TESTING Y COBERTURA
+coverage/
+*.lcov
+.nyc_output
+
+# LOGS Y ARCHIVOS TEMPORALES
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+*.log
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# CACHE Y ARCHIVOS TEMPORALES
+.cache/
+.parcel-cache/
+.turbo/
+
+# EDITORES E IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ARCHIVOS DEL SISTEMA OPERATIVO
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# HERRAMIENTAS DE DESARROLLO
+.eslintcache
