@@ -69,7 +69,7 @@ export class PagosController {
    */
   @Get('metodos-pago')
   @UseGuards(JwtAutenticacionGuard)
-  async obtenerMetodosPago() {
+  obtenerMetodosPago() {
     return this.pagosService.obtenerMetodosPagoDisponibles();
   }
 
@@ -175,5 +175,83 @@ export class PagosController {
         requiere_identificacion: true,
       },
     };
+  }
+
+  /**
+   * Crear reembolso total o parcial
+   */
+  @Post('/:pagoId/reembolsos')
+  @UseGuards(JwtAutenticacionGuard)
+  async crearReembolso(
+    @Param('pagoId') pagoId: string,
+    @Body() { amount, reason }: { amount?: number; reason?: string },
+    @Request() req
+  ) {
+    // Solo admin puede crear reembolsos
+    if (req.user.tipoUsuario !== 'ADMIN') {
+      throw new ForbiddenException(
+        'Solo los administradores pueden crear reembolsos'
+      );
+    }
+
+    this.logger.log(
+      `Admin ${req.user.userId} creando reembolso para pago ${pagoId}`
+    );
+
+    return this.pagosService.crearReembolso(pagoId, amount, reason);
+  }
+
+  /**
+   * Obtener lista de reembolsos de un pago
+   */
+  @Get('/:pagoId/reembolsos')
+  @UseGuards(JwtAutenticacionGuard)
+  async obtenerReembolsos(@Param('pagoId') pagoId: string, @Request() req) {
+    // Solo admin puede ver reembolsos
+    if (req.user.tipoUsuario !== 'ADMIN') {
+      throw new ForbiddenException(
+        'Solo los administradores pueden ver reembolsos'
+      );
+    }
+
+    return this.pagosService.obtenerReembolsos(pagoId);
+  }
+
+  /**
+   * Obtener reembolso específico
+   */
+  @Get('/:pagoId/reembolsos/:reembolsoId')
+  @UseGuards(JwtAutenticacionGuard)
+  async obtenerReembolso(
+    @Param('pagoId') pagoId: string,
+    @Param('reembolsoId') reembolsoId: string,
+    @Request() req
+  ) {
+    // Solo admin puede ver reembolsos
+    if (req.user.tipoUsuario !== 'ADMIN') {
+      throw new ForbiddenException(
+        'Solo los administradores pueden ver reembolsos'
+      );
+    }
+
+    return this.pagosService.obtenerReembolso(pagoId, reembolsoId);
+  }
+
+  /**
+   * Cancelar pago
+   */
+  @Post('/:pagoId/cancelar')
+  @UseGuards(JwtAutenticacionGuard)
+  async cancelarPago(@Param('pagoId') pagoId: string, @Request() req) {
+    // Solo admin puede cancelar pagos
+    if (req.user.tipoUsuario !== 'ADMIN') {
+      throw new ForbiddenException(
+        'Solo los administradores pueden cancelar pagos'
+      );
+    }
+
+    this.logger.log(`Admin ${req.user.userId} cancelando pago ${pagoId}`);
+
+    return this.pagosService.cancelarPago(pagoId);
   }
 }
