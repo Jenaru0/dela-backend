@@ -15,6 +15,8 @@ import { PagosService } from './pagos.service';
 import { PagoConTarjetaDto } from './dto/pago-con-tarjeta.dto';
 import { WebhookMercadoPagoDto } from './dto/webhook-mercadopago.dto';
 import { FiltrosPagosDto } from './dto/filtros-pagos.dto';
+import { CapturarPagoDto } from './dto/capturar-pago.dto';
+import { BusquedaAvanzadaDto } from './dto/busqueda-avanzada.dto';
 import { JwtAutenticacionGuard } from '../autenticacion/guards/jwt-autenticacion.guard';
 
 @Controller('pagos')
@@ -254,4 +256,102 @@ export class PagosController {
 
     return this.pagosService.cancelarPago(pagoId);
   }
+
+  /**
+   * Capturar pago autorizado
+   * Endpoint oficial: PUT /v1/payments/{payment_id}
+   */
+  @Post(':pagoId/capturar')
+  @UseGuards(JwtAutenticacionGuard)
+  async capturarPago(
+    @Param('pagoId') pagoId: string,
+    @Body() dto: CapturarPagoDto,
+    @Request() req?: any
+  ) {
+    // Solo admin puede capturar pagos
+    if (req.user.tipoUsuario !== 'ADMIN') {
+      throw new ForbiddenException(
+        'Solo los administradores pueden capturar pagos'
+      );
+    }
+
+    this.logger.log(`Capturando pago ${pagoId}`);
+    return this.pagosService.capturarPago(pagoId, dto.monto);
+  }
+
+  /**
+   * Crear reembolso total
+   */
+  @Post('/:pagoId/reembolso-total')
+  @UseGuards(JwtAutenticacionGuard)
+  async crearReembolsoTotal(
+    @Param('pagoId') pagoId: string,
+    @Body() { reason }: { reason?: string },
+    @Request() req
+  ) {
+    // Solo admin puede crear reembolsos totales
+    if (req.user.tipoUsuario !== 'ADMIN') {
+      throw new ForbiddenException(
+        'Solo los administradores pueden crear reembolsos totales'
+      );
+    }
+
+    this.logger.log(
+      `Admin ${req.user.userId} creando reembolso total para pago ${pagoId}`
+    );
+
+    return this.pagosService.crearReembolsoTotal(pagoId, reason);
+  }
+
+  /**
+   * Buscar pagos con filtros avanzados
+   */
+  @Get('buscar/avanzado')
+  @UseGuards(JwtAutenticacionGuard)
+  async buscarPagos(@Query() dto: BusquedaAvanzadaDto, @Request() req?: any) {
+    // Solo admin puede buscar pagos
+    if (req.user.tipoUsuario !== 'ADMIN') {
+      throw new ForbiddenException(
+        'Solo los administradores pueden buscar pagos'
+      );
+    }
+
+    return this.pagosService.buscarPagos(dto);
+  }
+
+  /**
+   * Obtener métodos de pago desde API oficial
+   */
+  @Get('metodos-pago/api-oficial')
+  @UseGuards(JwtAutenticacionGuard)
+  async obtenerMetodosPagoAPI() {
+    return this.pagosService.obtenerMetodosPagoRealesAPI();
+  }
+
+  /**
+   * Obtener tipos de identificación desde API oficial
+   */
+  @Get('tipos-identificacion/api-oficial')
+  @UseGuards(JwtAutenticacionGuard)
+  async obtenerTiposIdentificacion() {
+    return this.pagosService.obtenerTiposIdentificacion();
+  }
+
+  /**
+   * ==========================================
+   * ENDPOINTS PARA NUEVAS FUNCIONALIDADES - EN DESARROLLO
+   * ==========================================
+   */
+
+  /*
+  // MERCHANT ORDER ENDPOINTS - COMENTADOS TEMPORALMENTE
+  @Post('merchant-order')
+  @UseGuards(JwtAutenticacionGuard)
+  async crearOrdenComercio(@Body() datos: any, @Request() req) {
+    if (req.user.tipoUsuario !== 'ADMIN') {
+      throw new ForbiddenException('Solo los administradores pueden crear órdenes de comercio');
+    }
+    return this.pagosService.crearOrdenComercio(datos);
+  }
+  */
 }

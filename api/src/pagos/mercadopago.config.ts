@@ -12,7 +12,7 @@ export const createMercadoPagoConfig = (
   return new MercadoPagoConfig({
     accessToken: configuration.accessToken,
     options: {
-      timeout: 10000, // 10 segundos para Perú (conexiones más lentas)
+      timeout: 10000,
     },
   });
 };
@@ -25,7 +25,6 @@ export const getMercadoPagoConfig = (): MercadoPagoConfiguration => {
     throw new Error('🚨 ERROR: MP_ACCESS_TOKEN y MP_PUBLIC_KEY son requeridos');
   }
 
-  // ✅ VALIDACIÓN: URLs de webhook para Perú
   const webhookUrl =
     process.env.MP_WEBHOOK_URL || 'https://tu-dominio.com/pagos/webhook';
 
@@ -48,7 +47,7 @@ export const getMercadoPagoConfig = (): MercadoPagoConfiguration => {
 export const MERCADOPAGO_STATUS_MAPPING = {
   pending: 'PENDIENTE',
   approved: 'COMPLETADO',
-  authorized: 'PROCESANDO',
+  authorized: 'AUTORIZADO',
   in_process: 'PROCESANDO',
   in_mediation: 'PROCESANDO',
   rejected: 'FALLIDO',

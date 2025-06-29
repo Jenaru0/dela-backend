@@ -350,6 +350,7 @@ enum EstadoResena {
 enum EstadoPago {
   PENDIENTE
   PROCESANDO
+  AUTORIZADO
   COMPLETADO
   FALLIDO
   CANCELADO
