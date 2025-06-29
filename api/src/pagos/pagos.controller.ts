@@ -10,7 +10,6 @@ import {
   Request,
   ForbiddenException,
   Logger,
-  BadRequestException,
 } from '@nestjs/common';
 import { PagosService } from './pagos.service';
 import { PagoConTarjetaDto } from './dto/pago-con-tarjeta.dto';
@@ -142,16 +141,39 @@ export class PagosController {
   }
 
   /**
-   * CHECKOUT API - Obtener cuotas disponibles para un monto
+   * Obtener configuración específica para Perú
    */
-  @Get('checkout-api/cuotas/:monto')
+  @Get('configuracion/peru')
   @UseGuards(JwtAutenticacionGuard)
-  obtenerCuotasDisponibles(@Param('monto') monto: string) {
-    const montoNumerico = parseFloat(monto);
-    if (isNaN(montoNumerico) || montoNumerico <= 0) {
-      throw new BadRequestException('Monto inválido');
-    }
-
-    return this.pagosService.obtenerCuotasDisponibles(montoNumerico);
+  obtenerConfiguracionPeru() {
+    return {
+      pais: 'PE',
+      moneda: 'PEN',
+      simbolo_moneda: 'S/',
+      tipos_documento: [
+        {
+          codigo: 'DNI',
+          nombre: 'Documento Nacional de Identidad',
+          longitud: 8,
+        },
+        {
+          codigo: 'RUC',
+          nombre: 'Registro Único de Contribuyentes',
+          longitud: 11,
+        },
+        {
+          codigo: 'CE',
+          nombre: 'Carné de Extranjería',
+          longitud_min: 9,
+          longitud_max: 12,
+        },
+      ],
+      metodos_pago_disponibles: ['visa', 'master', 'amex', 'diners'],
+      checkout_api: {
+        descripcion: 'MercadoPago Checkout API para Perú',
+        requiere_token: true,
+        requiere_identificacion: true,
+      },
+    };
   }
 }

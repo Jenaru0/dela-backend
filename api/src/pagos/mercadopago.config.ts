@@ -12,7 +12,7 @@ export const createMercadoPagoConfig = (
   return new MercadoPagoConfig({
     accessToken: configuration.accessToken,
     options: {
-      timeout: 5000,
+      timeout: 10000, // 10 segundos para Perú (conexiones más lentas)
     },
   });
 };
@@ -29,11 +29,11 @@ export const getMercadoPagoConfig = (): MercadoPagoConfiguration => {
   const webhookUrl =
     process.env.MP_WEBHOOK_URL || 'https://tu-dominio.com/pagos/webhook';
 
-  // En producción, validar que las URLs no sean localhost
+  // ⚠️ IMPORTANTE: Para Perú, asegurar HTTPS y dominio público
   if (!accessToken.startsWith('TEST-') && webhookUrl.includes('localhost')) {
     throw new Error(
-      '🚨 PRODUCCIÓN: Las URLs de webhook no pueden usar localhost. ' +
-        'Configure MP_WEBHOOK_URL con una URL pública accesible.'
+      '🚨 PRODUCCIÓN PERÚ: Las URLs de webhook deben ser HTTPS públicas. ' +
+        'Configure MP_WEBHOOK_URL con una URL accesible desde internet.'
     );
   }
 

@@ -11,6 +11,7 @@ import { FiltrosPagosDto } from './dto/filtros-pagos.dto';
 import { Prisma, EstadoPago } from '@prisma/client';
 
 // IMPORTACIONES REALES DEL SDK DE MERCADOPAGO v2.8.0
+// Documentación oficial: https://github.com/mercadopago/sdk-nodejs
 import { MercadoPagoConfig, Payment } from 'mercadopago';
 
 import {
@@ -57,7 +58,6 @@ export class PagosService {
         `Procesando pago MP ID: ${paymentId} - Estado: ${pagoMercadoPago.status}`
       );
 
-      // Buscar el pago en nuestra base de datos por MercadoPago ID
       const pago = await this.prisma.pago.findFirst({
         where: { mercadopagoId: paymentId },
       });
@@ -67,13 +67,11 @@ export class PagosService {
         return;
       }
 
-      // Mapear el estado de MercadoPago a nuestro estado
       const nuevoEstado =
         MERCADOPAGO_STATUS_MAPPING[
           pagoMercadoPago.status as keyof typeof MERCADOPAGO_STATUS_MAPPING
         ] || 'PENDIENTE';
 
-      // Actualizar el pago
       await this.prisma.pago.update({
         where: { id: pago.id },
         data: {
@@ -84,7 +82,6 @@ export class PagosService {
         },
       });
 
-      // Si el pago fue aprobado, verificar el estado del pedido
       if (nuevoEstado === 'COMPLETADO') {
         await this.verificarEstadoPedido(pago.pedidoId);
       }
@@ -207,24 +204,19 @@ export class PagosService {
   }
 
   /**
-   * Obtener métodos de pago disponibles (MEJORADO - Datos reales de MercadoPago)
+   * Obtener métodos de pago disponibles desde API oficial de MercadoPago
    */
   async obtenerMetodosPagoDisponibles() {
     try {
       const metodosReales = await this.obtenerMetodosPagoReales();
-
       const config = getMercadoPagoConfig();
 
       return {
-        metodos: metodosReales,
-        configuracion: {
-          pais: 'PE', // Específico para Perú
-          moneda: 'PEN', // Soles peruanos
-          modoTest: config.accessToken.startsWith('TEST-'),
-          // Configuración específica para Perú
-          identificacion_requerida: true,
-          tipos_documento: ['DNI', 'RUC', 'CE'],
-        },
+        payment_methods: metodosReales,
+        country: 'PE',
+        currency: 'PEN',
+        test_mode: config.accessToken.startsWith('TEST-'),
+        identification_types: ['DNI', 'RUC', 'CE'],
       };
     } catch (error) {
       this.logger.error('Error al obtener métodos de pago:', error);
@@ -240,31 +232,15 @@ export class PagosService {
   async crearPagoDirectoMercadoPago(dto: PagoConTarjetaDto) {
     this.logger.log(`Iniciando pago Checkout API para pedido ${dto.pedidoId}`);
 
-    // Verificar que el pedido existe
     const pedido = await this.prisma.pedido.findUnique({
       where: { id: dto.pedidoId },
-      include: {
-        usuario: true,
-        detallePedidos: {
-          include: {
-            producto: {
-              select: {
-                id: true,
-                nombre: true,
-                sku: true,
-                precioUnitario: true,
-              },
-            },
-          },
-        },
-      },
+      include: { usuario: true },
     });
 
     if (!pedido) {
       throw new NotFoundException('Pedido no encontrado');
     }
 
-    // 3. Verificar que no hay pagos ya procesados
     const pagosExistentes = await this.prisma.pago.findMany({
       where: {
         pedidoId: dto.pedidoId,
@@ -281,12 +257,11 @@ export class PagosService {
     try {
       const payment = new Payment(this.mercadopago);
 
-      // 5. Datos reales para MercadoPago Checkout API
       const paymentData = {
         transaction_amount: Number(pedido.total),
         token: dto.token,
         description: `Pedido ${pedido.numero}`,
-        installments: 1, // Checkout API básico = 1 cuota
+        installments: 1,
         payer: {
           email: dto.email,
           identification: dto.documento
@@ -297,26 +272,19 @@ export class PagosService {
             : undefined,
         },
         external_reference: pedido.numero,
-        metadata: {
-          pedido_id: pedido.id.toString(),
-          pedido_numero: pedido.numero,
-        },
         notification_url: getMercadoPagoConfig().webhookUrl,
         statement_descriptor: 'DELA-PLATFORM',
+        binary_mode: false,
       };
 
-      this.logger.log(
-        `💳 Procesando pago directo - Monto: S/${pedido.total.toString()}`
-      );
+      this.logger.log(`💳 Procesando pago - Monto: S/${Number(pedido.total)}`);
 
-      // 6. Crear el pago en MercadoPago
       const pagoMercadoPago = await payment.create({ body: paymentData });
 
       if (!pagoMercadoPago.id) {
         throw new BadRequestException('Error al crear pago en MercadoPago');
       }
 
-      // 7. Guardar el pago con campos REALES de MercadoPago
       const pago = await this.prisma.pago.create({
         data: {
           pedidoId: dto.pedidoId,
@@ -351,19 +319,17 @@ export class PagosService {
         },
       });
 
-      // 8. Si el pago fue aprobado, actualizar el estado del pedido
       if (pagoMercadoPago.status === 'approved') {
         await this.verificarEstadoPedido(dto.pedidoId);
         this.logger.log(
-          `✅ Pago aprobado inmediatamente - Pedido ${pedido.numero} confirmado`
+          `✅ Pago aprobado - Pedido ${pedido.numero} confirmado`
         );
       }
 
       this.logger.log(
-        `🎯 Pago Checkout API creado exitosamente - MP ID: ${pagoMercadoPago.id} - Estado: ${pagoMercadoPago.status}`
+        `🎯 Pago creado - MP ID: ${pagoMercadoPago.id} - Estado: ${pagoMercadoPago.status}`
       );
 
-      // 9. Respuesta optimizada para frontend
       return {
         pago,
         mercadopago: {
@@ -374,7 +340,6 @@ export class PagosService {
           transaction_amount: pagoMercadoPago.transaction_amount,
           installments: pagoMercadoPago.installments,
           payment_method_id: pagoMercadoPago.payment_method_id,
-          // Información de la tarjeta (solo últimos 4 dígitos)
           card: pagoMercadoPago.card
             ? {
                 first_six_digits: pagoMercadoPago.card.first_six_digits,
@@ -393,17 +358,20 @@ export class PagosService {
     } catch (error) {
       this.logger.error('❌ Error en Checkout API:', error);
 
-      // Manejo específico de errores de Checkout API
+      // Manejo de errores basado en documentación oficial
       if (
         error.message?.includes('invalid_token') ||
-        error.message?.includes('token')
+        error.message?.includes('4000')
       ) {
         throw new BadRequestException(
           'Token de tarjeta inválido o expirado. Regenere el token desde el frontend.'
         );
       }
 
-      if (error.message?.includes('invalid_payment_method')) {
+      if (
+        error.message?.includes('invalid_payment_method') ||
+        error.message?.includes('3028')
+      ) {
         throw new BadRequestException(
           'Método de pago no válido para Checkout API. Use tarjetas de crédito o débito.'
         );
@@ -421,9 +389,38 @@ export class PagosService {
         );
       }
 
-      if (error.message?.includes('cc_rejected_bad_filled_date')) {
+      if (
+        error.message?.includes('cc_rejected_bad_filled_date') ||
+        error.message?.includes('3029') ||
+        error.message?.includes('3030')
+      ) {
         throw new BadRequestException(
           'Fecha de vencimiento de la tarjeta inválida.'
+        );
+      }
+
+      if (
+        error.message?.includes('cc_rejected_bad_filled_card_number') ||
+        error.message?.includes('3016')
+      ) {
+        throw new BadRequestException('Número de tarjeta inválido.');
+      }
+
+      if (error.message?.includes('cc_rejected_card_disabled')) {
+        throw new BadRequestException(
+          'Tarjeta deshabilitada. Contacte a su banco emisor.'
+        );
+      }
+
+      if (error.message?.includes('cc_rejected_duplicated_payment')) {
+        throw new BadRequestException(
+          'Ya se procesó un pago con esta información. Use otra tarjeta si necesita realizar otro pago.'
+        );
+      }
+
+      if (error.message?.includes('cc_rejected_high_risk')) {
+        throw new BadRequestException(
+          'Pago rechazado por políticas de seguridad. Intente con otro método de pago.'
         );
       }
 
@@ -434,26 +431,12 @@ export class PagosService {
   }
 
   /**
-   * Mapear estado de MercadoPago a nuestro estado
-   * Basado en la documentación oficial de Mercado Pago Checkout API
-   * @see https://www.mercadopago.com/developers/es/docs/checkout-api/payment-management/payment-statuses
+   * Mapear estado de MercadoPago a nuestro estado usando el mapping centralizado
    */
   private mapearEstadoDesdeMercadoPago(status: string): EstadoPago {
-    const mapping = {
-      // Estados principales de Mercado Pago
-      pending: 'PENDIENTE', // Pago pendiente
-      approved: 'COMPLETADO', // Pago aprobado y completado
-      authorized: 'PROCESANDO', // Pago autorizado (captura manual pendiente)
-      in_process: 'PENDIENTE', // Pago en proceso de verificación
-      in_mediation: 'PENDIENTE', // Pago en mediación
-      rejected: 'FALLIDO', // Pago rechazado
-      cancelled: 'CANCELADO', // Pago cancelado
-      refunded: 'REEMBOLSADO', // Pago reembolsado
-      charged_back: 'REEMBOLSADO', // Contracargo (se trata como reembolso)
-    };
-
-    return (mapping[status as keyof typeof mapping] ||
-      'PENDIENTE') as EstadoPago;
+    return (MERCADOPAGO_STATUS_MAPPING[
+      status as keyof typeof MERCADOPAGO_STATUS_MAPPING
+    ] || 'PENDIENTE') as EstadoPago;
   }
 
   /**
@@ -512,44 +495,19 @@ export class PagosService {
   }
 
   /**
-   * Obtener cuotas disponibles para un monto específico en Perú (PEN)
-   * Basado en las configuraciones reales de MercadoPago para Perú
-   */
-  obtenerCuotasDisponibles(monto: number) {
-    // Configuración real de cuotas en Perú
-    const cuotasPeruanas = [
-      { installments: 1, total: monto, interest_rate: 0 },
-      { installments: 3, total: monto * 1.0299, interest_rate: 2.99 }, // TEA ~3%
-      { installments: 6, total: monto * 1.0899, interest_rate: 8.99 }, // TEA ~9%
-      { installments: 12, total: monto * 1.1899, interest_rate: 18.99 }, // TEA ~19%
-    ];
-
-    return {
-      available_installments: cuotasPeruanas,
-      recommended: 1,
-      max_installments: 12,
-      min_amount: 1, // Mínimo 1 sol
-      currency: 'PEN',
-      pais: 'PE',
-    };
-  }
-
-  /**
-   * Validar tipo de documento peruano y formatear para MercadoPago
-   * Según normativas peruanas: DNI (8 dígitos), RUC (11 dígitos), CE (9-12 dígitos)
+   * Validar tipo de documento peruano para MercadoPago
    */
   private validarTipoDocumento(documento: string): string {
     if (!documento) return 'DNI';
 
-    // Remover espacios, guiones y caracteres especiales
     const documentoLimpio = documento.replace(/[\s\-.]/g, '');
 
-    // Validar DNI (8 dígitos numéricos)
+    // DNI: 8 dígitos numéricos
     if (documentoLimpio.length === 8 && /^\d{8}$/.test(documentoLimpio)) {
       return 'DNI';
     }
 
-    // Validar RUC (11 dígitos numéricos, empieza con 10, 15, 17 o 20)
+    // RUC: 11 dígitos, empieza con 10, 15, 17 o 20
     if (
       documentoLimpio.length === 11 &&
       /^(10|15|17|20)\d{9}$/.test(documentoLimpio)
@@ -557,16 +515,15 @@ export class PagosService {
       return 'RUC';
     }
 
-    // Validar Carné de Extranjería (9-12 caracteres alfanuméricos)
+    // Carné de Extranjería: 9-12 caracteres alfanuméricos
     if (
       documentoLimpio.length >= 9 &&
       documentoLimpio.length <= 12 &&
-      /^[A-Z0-9]+$/.test(documentoLimpio.toUpperCase())
+      /^[A-Z0-9]+$/i.test(documentoLimpio)
     ) {
       return 'CE';
     }
 
-    // Por defecto DNI para Perú
     return 'DNI';
   }
 
@@ -575,9 +532,9 @@ export class PagosService {
    */
   private async obtenerMetodosPagoReales(): Promise<unknown[]> {
     try {
+      const config = getMercadoPagoConfig();
       const response = await fetch(
-        'https://api.mercadopago.com/v1/payment_methods?public_key=' +
-          getMercadoPagoConfig().publicKey
+        `https://api.mercadopago.com/v1/payment_methods?public_key=${config.publicKey}`
       );
 
       if (!response.ok) {
@@ -586,53 +543,42 @@ export class PagosService {
 
       const paymentMethods = (await response.json()) as unknown[];
 
-      // Filtrar solo métodos disponibles para Checkout API en Perú
       const metodosCheckoutAPI = paymentMethods.filter(
         (method: any) =>
           method.status === 'active' &&
           (method.payment_type_id === 'credit_card' ||
-            method.payment_type_id === 'debit_card') &&
-          // Específicamente para Perú
-          ['visa', 'master', 'amex', 'diners'].includes(method.id as string)
+            method.payment_type_id === 'debit_card')
       );
 
       return metodosCheckoutAPI;
     } catch (error) {
       this.logger.error('Error al obtener métodos de pago desde API:', error);
 
-      // Fallback con métodos reales disponibles en Perú
+      // Fallback mínimo - solo campos básicos según documentación oficial
       return [
         {
           id: 'visa',
           name: 'Visa',
           payment_type_id: 'credit_card',
           status: 'active',
-          thumbnail:
-            'https://http2.mlstatic.com/frontend-assets/payment-methods/visa.png',
         },
         {
           id: 'master',
           name: 'Mastercard',
           payment_type_id: 'credit_card',
           status: 'active',
-          thumbnail:
-            'https://http2.mlstatic.com/frontend-assets/payment-methods/mastercard.png',
         },
         {
           id: 'amex',
           name: 'American Express',
           payment_type_id: 'credit_card',
           status: 'active',
-          thumbnail:
-            'https://http2.mlstatic.com/frontend-assets/payment-methods/amex.png',
         },
         {
           id: 'diners',
           name: 'Diners Club',
           payment_type_id: 'credit_card',
           status: 'active',
-          thumbnail:
-            'https://http2.mlstatic.com/frontend-assets/payment-methods/diners.png',
         },
       ];
     }

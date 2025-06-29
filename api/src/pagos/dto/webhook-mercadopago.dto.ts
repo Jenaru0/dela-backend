@@ -1,11 +1,17 @@
-import { IsString, IsObject } from 'class-validator';
+import {
+  IsString,
+  IsObject,
+  IsBoolean,
+  IsNumber,
+  IsOptional,
+} from 'class-validator';
 
 export class WebhookMercadoPagoDto {
-  @IsString()
-  id: string;
+  @IsNumber()
+  id: number;
 
-  @IsString()
-  live_mode: string;
+  @IsBoolean()
+  live_mode: boolean;
 
   @IsString()
   type: string;
@@ -13,14 +19,16 @@ export class WebhookMercadoPagoDto {
   @IsString()
   date_created: string;
 
+  @IsOptional()
   @IsString()
-  application_id: string;
+  application_id?: string;
 
-  @IsString()
-  user_id: string;
+  @IsNumber()
+  user_id: number;
 
+  @IsOptional()
   @IsString()
-  version: string;
+  version?: string;
 
   @IsString()
   api_version: string;

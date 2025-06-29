@@ -360,14 +360,7 @@ enum MetodoPago {
   visa
   master
   amex
-  naranja
-  cabal
-  shopping
-  cencosud
-  cmr
-  argencard
   diners
-  tarshop
 }
 
 enum MetodoEnvio {
