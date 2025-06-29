@@ -4,39 +4,43 @@ import {
   Post,
   Body,
   Param,
-  Patch,
   Query,
   ParseIntPipe,
   UseGuards,
   Request,
   ForbiddenException,
+  Logger,
+  BadRequestException,
 } from '@nestjs/common';
 import { PagosService } from './pagos.service';
-import { CreatePagoDto } from './dto/crear-pago.dto';
-import { UpdatePagoDto } from './dto/update-pago.dto';
+import { PagoConTarjetaDto } from './dto/pago-con-tarjeta.dto';
+import { WebhookMercadoPagoDto } from './dto/webhook-mercadopago.dto';
 import { FiltrosPagosDto } from './dto/filtros-pagos.dto';
 import { JwtAutenticacionGuard } from '../autenticacion/guards/jwt-autenticacion.guard';
 
 @Controller('pagos')
-@UseGuards(JwtAutenticacionGuard)
 export class PagosController {
+  private readonly logger = new Logger(PagosController.name);
+
   constructor(private readonly pagosService: PagosService) {}
 
-  @Post()
-  async create(@Body() dto: CreatePagoDto, @Request() req) {
-    // Solo admin puede registrar pagos directamente
-    if (req.user.tipoUsuario !== 'ADMIN') {
-      throw new ForbiddenException(
-        'Solo los administradores pueden registrar pagos'
-      );
-    }
+  /**
+   * Webhook de MercadoPago para notificaciones de pago
+   * Este endpoint NO requiere autenticación ya que es llamado por MercadoPago
+   */
+  @Post('webhook')
+  async webhookMercadoPago(@Body() webhookData: WebhookMercadoPagoDto) {
+    this.logger.log(`Webhook MercadoPago recibido: ${webhookData.type}`);
 
-    return this.pagosService.create(dto);
+    return this.pagosService.procesarWebhook(webhookData);
   }
 
+  /**
+   * Obtener todos los pagos (solo admin)
+   */
   @Get()
+  @UseGuards(JwtAutenticacionGuard)
   async findAll(@Query() filtros: FiltrosPagosDto, @Request() req) {
-    // Solo admin puede ver todos los pagos
     if (req.user.tipoUsuario !== 'ADMIN') {
       throw new ForbiddenException(
         'Solo los administradores pueden ver todos los pagos'
@@ -46,7 +50,11 @@ export class PagosController {
     return this.pagosService.findAll(filtros);
   }
 
+  /**
+   * Obtener estadísticas de pagos (solo admin)
+   */
   @Get('estadisticas')
+  @UseGuards(JwtAutenticacionGuard)
   async obtenerEstadisticas(@Request() req) {
     if (req.user.tipoUsuario !== 'ADMIN') {
       throw new ForbiddenException(
@@ -57,15 +65,28 @@ export class PagosController {
     return this.pagosService.obtenerEstadisticasPagos();
   }
 
+  /**
+   * Obtener métodos de pago disponibles
+   */
+  @Get('metodos-pago')
+  @UseGuards(JwtAutenticacionGuard)
+  async obtenerMetodosPago() {
+    return this.pagosService.obtenerMetodosPagoDisponibles();
+  }
+
+  /**
+   * Obtener pagos por pedido
+   */
   @Get('pedido/:pedidoId')
+  @UseGuards(JwtAutenticacionGuard)
   async findByPedido(
     @Param('pedidoId', ParseIntPipe) pedidoId: number,
     @Request() req
   ) {
-    // Verificar que el usuario puede acceder a este pedido
+    // Verificar permisos
     if (req.user.tipoUsuario !== 'ADMIN') {
-      // Aquí deberíamos verificar que el pedido pertenece al usuario
-      // Por simplicidad, asumimos que solo admin puede ver pagos por ahora
+      // Aquí deberías verificar que el pedido pertenece al usuario
+      // Por simplicidad, solo permitimos admin por ahora
       throw new ForbiddenException(
         'Solo los administradores pueden ver pagos de pedidos'
       );
@@ -74,11 +95,15 @@ export class PagosController {
     return this.pagosService.findByPedido(pedidoId);
   }
 
+  /**
+   * Obtener un pago específico
+   */
   @Get(':id')
+  @UseGuards(JwtAutenticacionGuard)
   async findOne(@Param('id', ParseIntPipe) id: number, @Request() req) {
     const pago = await this.pagosService.findOne(id);
 
-    // Solo admin o el dueño del pedido pueden ver el pago
+    // Verificar permisos
     if (
       req.user.tipoUsuario !== 'ADMIN' &&
       pago.pedido.usuario.id !== req.user.id
@@ -89,62 +114,61 @@ export class PagosController {
     return pago;
   }
 
-  @Patch(':id')
-  async update(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() dto: UpdatePagoDto,
-    @Request() req
-  ) {
-    if (req.user.tipoUsuario !== 'ADMIN') {
-      throw new ForbiddenException(
-        'Solo los administradores pueden actualizar pagos'
-      );
-    }
-
-    return this.pagosService.update(id, dto);
-  }
-  @Post(':id/confirmar')
-  async confirmarPago(
-    @Param('id', ParseIntPipe) id: number,
-    @Body('referencia') referencia?: string,
-    @Request() req?
-  ) {
-    if (req.user.tipoUsuario !== 'ADMIN') {
-      throw new ForbiddenException(
-        'Solo los administradores pueden confirmar pagos'
-      );
-    }
-
-    return this.pagosService.confirmarPago(id, referencia);
+  /**
+   * Crear pago directo con tarjeta (Checkout API)
+   */
+  @Post('con-tarjeta')
+  @UseGuards(JwtAutenticacionGuard)
+  async crearPagoConTarjeta(@Body() dto: PagoConTarjetaDto) {
+    this.logger.log(
+      `Creando pago directo con tarjeta para pedido ${dto.pedidoId}`
+    );
+    return this.pagosService.crearPagoDirectoMercadoPago(dto);
   }
 
-  @Post(':id/rechazar')
-  async rechazarPago(
-    @Param('id', ParseIntPipe) id: number,
-    @Body('motivo') motivo?: string,
-    @Request() req?
-  ) {
+  /**
+   * Validar configuración de MercadoPago
+   */
+  @Get('configuracion/validar')
+  @UseGuards(JwtAutenticacionGuard)
+  validarConfiguracion(@Request() req) {
     if (req.user.tipoUsuario !== 'ADMIN') {
       throw new ForbiddenException(
-        'Solo los administradores pueden rechazar pagos'
+        'Solo los administradores pueden validar la configuración'
       );
     }
 
-    return this.pagosService.rechazarPago(id, motivo);
+    return this.pagosService.validarConfiguracionMercadoPago();
   }
 
-  @Post(':id/reembolsar')
-  async procesarReembolso(
-    @Param('id', ParseIntPipe) id: number,
-    @Body('motivo') motivo?: string,
-    @Request() req?
-  ) {
-    if (req.user.tipoUsuario !== 'ADMIN') {
-      throw new ForbiddenException(
-        'Solo los administradores pueden procesar reembolsos'
-      );
+  /**
+   * CHECKOUT API - Obtener cuotas disponibles para un monto
+   */
+  @Get('checkout-api/cuotas/:monto')
+  @UseGuards(JwtAutenticacionGuard)
+  obtenerCuotasDisponibles(@Param('monto') monto: string) {
+    const montoNumerico = parseFloat(monto);
+    if (isNaN(montoNumerico) || montoNumerico <= 0) {
+      throw new BadRequestException('Monto inválido');
     }
 
-    return this.pagosService.procesarReembolso(id, motivo);
+    return this.pagosService.obtenerCuotasDisponibles(montoNumerico);
+  }
+
+  /**
+   * CHECKOUT API - Validar token de tarjeta
+   */
+  @Post('checkout-api/validar-token')
+  @UseGuards(JwtAutenticacionGuard)
+  validarTokenTarjeta(@Body('token') token: string) {
+    if (!token) {
+      throw new BadRequestException('Token es requerido');
+    }
+
+    const valido = this.pagosService.validarTokenTarjeta(token);
+    return {
+      valido,
+      mensaje: valido ? 'Token válido' : 'Token inválido',
+    };
   }
 }
