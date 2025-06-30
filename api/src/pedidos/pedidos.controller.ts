@@ -41,7 +41,11 @@ export class PedidosController {
       throw new ForbiddenException('Solo puedes crear tus propios pedidos');
     }
 
-    return this.pedidosService.create(dto);
+    const pedido = await this.pedidosService.create(dto);
+    return {
+      mensaje: 'Pedido creado exitosamente',
+      data: pedido,
+    };
   }
 
   @Get('mis-pedidos')

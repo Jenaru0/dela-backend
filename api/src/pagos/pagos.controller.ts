@@ -97,25 +97,6 @@ export class PagosController {
   }
 
   /**
-   * Obtener un pago específico
-   */
-  @Get(':id')
-  @UseGuards(JwtAutenticacionGuard)
-  async findOne(@Param('id', ParseIntPipe) id: number, @Request() req) {
-    const pago = await this.pagosService.findOne(id);
-
-    // Verificar permisos
-    if (
-      req.user.tipoUsuario !== 'ADMIN' &&
-      pago.pedido.usuario.id !== req.user.id
-    ) {
-      throw new ForbiddenException('No tienes acceso a este pago');
-    }
-
-    return pago;
-  }
-
-  /**
    * Crear pago directo con tarjeta (Checkout API)
    */
   @Post('con-tarjeta')
@@ -170,7 +151,7 @@ export class PagosController {
           longitud_max: 12,
         },
       ],
-      metodos_pago_disponibles: ['visa', 'master', 'amex', 'diners'],
+      metodos_pago_disponibles: ['visa', 'master', 'amex'],
       checkout_api: {
         descripcion: 'MercadoPago Checkout API para Perú',
         requiere_token: true,
@@ -320,6 +301,15 @@ export class PagosController {
   }
 
   /**
+   * Obtener tipos de identificación desde API oficial
+   */
+  @Get('tipos-identificacion')
+  @UseGuards(JwtAutenticacionGuard)
+  async obtenerTiposIdentificacionSimple() {
+    return this.pagosService.obtenerTiposIdentificacion();
+  }
+
+  /**
    * Obtener métodos de pago desde API oficial
    */
   @Get('metodos-pago/api-oficial')
@@ -342,6 +332,26 @@ export class PagosController {
    * ENDPOINTS PARA NUEVAS FUNCIONALIDADES - EN DESARROLLO
    * ==========================================
    */
+
+  /**
+   * Obtener un pago específico por ID
+   * NOTA: Este endpoint debe ir al final para evitar conflictos de rutas
+   */
+  @Get(':id')
+  @UseGuards(JwtAutenticacionGuard)
+  async findOne(@Param('id', ParseIntPipe) id: number, @Request() req) {
+    const pago = await this.pagosService.findOne(id);
+
+    // Verificar permisos
+    if (
+      req.user.tipoUsuario !== 'ADMIN' &&
+      pago.pedido.usuario.id !== req.user.id
+    ) {
+      throw new ForbiddenException('No tienes acceso a este pago');
+    }
+
+    return pago;
+  }
 
   /*
   // MERCHANT ORDER ENDPOINTS - COMENTADOS TEMPORALMENTE

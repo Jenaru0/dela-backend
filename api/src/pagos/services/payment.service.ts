@@ -13,6 +13,10 @@ import {
   MERCADOPAGO_STATUS_MAPPING,
 } from '../mercadopago.config';
 import { PagoConTarjetaDto } from '../dto/pago-con-tarjeta.dto';
+import {
+  MercadoPagoPaymentResponse,
+  MercadoPagoTokenResponse,
+} from '../types/mercadopago.types';
 
 /**
  * Servicio dedicado exclusivamente a Payment API de MercadoPago
@@ -59,29 +63,215 @@ export class PaymentService {
     try {
       const payment = new Payment(this.mercadopago);
 
-      const paymentData = {
-        transaction_amount: Number(pedido.total),
-        token: dto.token,
-        description: `Pedido ${pedido.numero}`,
-        installments: 1,
-        payer: {
-          email: dto.email,
-          identification: dto.documento
-            ? {
-                type: this.validarTipoDocumento(dto.documento),
-                number: dto.documento,
-              }
-            : undefined,
-        },
-        external_reference: pedido.numero,
-        notification_url: getMercadoPagoConfig().webhookUrl,
-        statement_descriptor: 'DELA-PLATFORM',
-        binary_mode: false,
-      };
+      let paymentData: Record<string, unknown>;
 
-      this.logger.log(`💳 Procesando pago - Monto: S/${Number(pedido.total)}`);
+      if (dto.token) {
+        // Caso 1: Token ya generado (método preferido para producción)
+        paymentData = {
+          transaction_amount: Number(dto.monto) / 100, // Convertir de centavos a soles
+          token: dto.token,
+          description: `Pedido ${pedido.numero}`,
+          installments: 1,
+          payment_method_id: dto.metodoPago.toLowerCase(),
+          payer: {
+            email: dto.datosTarjeta?.email || pedido.usuario.email,
+            identification: dto.datosTarjeta?.numeroDocumento
+              ? {
+                  type: this.validarTipoDocumento(
+                    dto.datosTarjeta.numeroDocumento
+                  ),
+                  number: dto.datosTarjeta.numeroDocumento,
+                }
+              : undefined,
+          },
+          external_reference: pedido.numero,
+          statement_descriptor: 'DELA-PLATFORM',
+          binary_mode: false,
+        };
 
-      const pagoMercadoPago = await payment.create({ body: paymentData });
+        // Solo agregar issuer_id si está disponible
+        if (dto.issuerId) {
+          paymentData.issuer_id = dto.issuerId;
+        }
+      } else if (dto.datosTarjeta) {
+        // Caso 2: Datos de tarjeta directos - Necesitamos crear token primero
+        this.logger.warn(
+          '⚠️  Creando token desde datos de tarjeta - Solo para desarrollo'
+        );
+
+        // Formatear número de tarjeta (remover espacios)
+        const numeroTarjeta = dto.datosTarjeta.numeroTarjeta.replace(/\s/g, '');
+
+        // Validar que sea una tarjeta de prueba oficial en modo test
+        const firstSixDigits = numeroTarjeta.slice(0, 6);
+
+        // LOG DETALLADO PARA DEBUG
+        this.logger.log(
+          `🔍 DEBUG - Número recibido: "${dto.datosTarjeta.numeroTarjeta}"`
+        );
+        this.logger.log(`🔍 DEBUG - Número limpio: "${numeroTarjeta}"`);
+        this.logger.log(`🔍 DEBUG - Longitud: ${numeroTarjeta.length}`);
+        this.logger.log(`🔍 DEBUG - Primeros 6 dígitos: "${firstSixDigits}"`);
+        this.logger.log(
+          `🔍 DEBUG - Es tarjeta oficial: ${this.esTargetapruebaOficial(firstSixDigits)}`
+        );
+
+        if (!this.esTargetapruebaOficial(firstSixDigits)) {
+          this.logger.error(
+            `❌ Tarjeta ${firstSixDigits}... NO es de prueba oficial de MercadoPago Perú`
+          );
+          throw new BadRequestException(
+            'En modo test, solo se aceptan tarjetas de prueba oficiales de MercadoPago Perú. ' +
+              'Use: 5031 7557 3453 0604 (MC), 4009 1753 3280 6176 (Visa), ' +
+              '3711 803032 57522 (Amex) o 5178 7816 2220 2455 (MC Débito)'
+          );
+        }
+
+        // Convertir fecha MM/YY a MM/YYYY
+        const [mes, ano] = dto.datosTarjeta.fechaExpiracion.split('/');
+        const anoCompleto = `20${ano}`;
+
+        try {
+          // Log de datos que se van a tokenizar (sin mostrar datos sensibles completos)
+          this.logger.log('🔍 Creando token con datos:', {
+            card_number_length: numeroTarjeta.length,
+            first_six: numeroTarjeta.slice(0, 6),
+            expiration_month: parseInt(mes),
+            expiration_year: parseInt(anoCompleto),
+            security_code_length: dto.datosTarjeta.codigoSeguridad.length,
+            cardholder_name: dto.datosTarjeta.nombreTitular,
+            identification_type: dto.datosTarjeta.tipoDocumento.toUpperCase(),
+            identification_number_length:
+              dto.datosTarjeta.numeroDocumento.length,
+          });
+
+          // Crear token usando Card Token API
+          const tokenPayload = {
+            card_number: numeroTarjeta,
+            expiration_month: parseInt(mes),
+            expiration_year: parseInt(anoCompleto),
+            security_code: dto.datosTarjeta.codigoSeguridad,
+            cardholder: {
+              name: dto.datosTarjeta.nombreTitular,
+              identification: {
+                type: dto.datosTarjeta.tipoDocumento.toUpperCase(),
+                number: dto.datosTarjeta.numeroDocumento,
+              },
+            },
+          };
+
+          this.logger.log(
+            '📤 Payload de tokenización:',
+            JSON.stringify(tokenPayload, null, 2)
+          );
+
+          const tokenResponse = await fetch(
+            'https://api.mercadopago.com/v1/card_tokens',
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${getMercadoPagoConfig().accessToken}`,
+              },
+              body: JSON.stringify(tokenPayload),
+            }
+          );
+
+          this.logger.log(
+            `📥 Token response status: ${tokenResponse.status} ${tokenResponse.statusText}`
+          );
+
+          if (!tokenResponse.ok) {
+            const tokenError = (await tokenResponse.json()) as Record<
+              string,
+              unknown
+            >;
+            this.logger.error(
+              '❌ Error detallado al crear token:',
+              JSON.stringify(tokenError, null, 2)
+            );
+
+            // Manejo específico de errores de tokenización
+            if (tokenError.cause && Array.isArray(tokenError.cause)) {
+              const causesMessages = tokenError.cause
+                .map(
+                  (cause: any) =>
+                    `${cause.code}: ${cause.description || cause.message}`
+                )
+                .join(', ');
+              throw new BadRequestException(
+                `Error en datos de tarjeta: ${causesMessages}`
+              );
+            }
+            const errorMsg = String(tokenError.message || tokenError.error);
+            throw new BadRequestException(
+              `Error al procesar tarjeta: ${errorMsg || 'Token inválido'}`
+            );
+          }
+
+          const tokenData =
+            (await tokenResponse.json()) as MercadoPagoTokenResponse;
+          this.logger.log('✅ Token creado exitosamente:', {
+            id: tokenData.id,
+            first_six_digits: tokenData.first_six_digits,
+            last_four_digits: tokenData.last_four_digits,
+          });
+
+          // Usar el token generado para el pago
+          paymentData = {
+            transaction_amount: Number(dto.monto) / 100,
+            token: tokenData.id,
+            description: `Pedido ${pedido.numero}`,
+            installments: 1,
+            payment_method_id: dto.metodoPago.toLowerCase(),
+            payer: {
+              email: dto.datosTarjeta.email,
+              identification: {
+                type: dto.datosTarjeta.tipoDocumento.toUpperCase(),
+                number: dto.datosTarjeta.numeroDocumento,
+              },
+            },
+            external_reference: pedido.numero,
+            statement_descriptor: 'DELA-PLATFORM',
+            binary_mode: false,
+          };
+
+          // Para desarrollo: detectar issuer_id basado en los primeros 6 dígitos de tarjetas de prueba de Perú
+          const firstSixDigits = tokenData.first_six_digits;
+          if (firstSixDigits) {
+            const issuerId = this.detectarIssuerIdPeru(firstSixDigits);
+            if (issuerId) {
+              paymentData.issuer_id = issuerId;
+              this.logger.log(
+                `Issuer ID detectado: ${issuerId} para ${firstSixDigits}`
+              );
+            } else {
+              this.logger.log(
+                `🚫 No se enviará issuer_id para tarjeta de prueba ${firstSixDigits} (recomendado)`
+              );
+            }
+          }
+        } catch (error) {
+          this.logger.error('Error en tokenización:', error);
+          throw new BadRequestException('Error al procesar datos de tarjeta');
+        }
+      } else {
+        throw new BadRequestException(
+          'Debe proporcionar token o datos de tarjeta'
+        );
+      }
+
+      this.logger.log(
+        `💳 Procesando pago - Monto: S/${Number(dto.monto || pedido.total)}`
+      );
+
+      // Log del payload que se va a enviar
+      this.logger.log('🔍 Payload que se enviará a MercadoPago:');
+      this.logger.log(JSON.stringify(paymentData, null, 2));
+
+      const pagoMercadoPago = (await payment.create({
+        body: paymentData,
+      })) as MercadoPagoPaymentResponse;
 
       if (!pagoMercadoPago.id) {
         throw new BadRequestException('Error al crear pago en MercadoPago');
@@ -98,9 +288,9 @@ export class PaymentService {
             ? new Date(pagoMercadoPago.date_approved)
             : null,
           mercadopagoId: pagoMercadoPago.id?.toString(),
-          paymentMethodId: pagoMercadoPago.payment_method_id,
+          paymentMethodId: pagoMercadoPago.payment_method_id || null,
           cuotas: pagoMercadoPago.installments || 1,
-          ultimosCuatroDigitos: pagoMercadoPago.card?.last_four_digits,
+          ultimosCuatroDigitos: pagoMercadoPago.card?.last_four_digits || null,
         },
         include: {
           pedido: {
@@ -133,19 +323,29 @@ export class PaymentService {
       );
 
       return {
-        pago,
+        data: {
+          id: pago.id,
+          estado: pago.estado,
+          monto: pago.monto,
+          fechaPago: pago.fechaPago,
+          mercadopagoId: pago.mercadopagoId,
+          paymentMethodId: pago.paymentMethodId,
+          cuotas: pago.cuotas,
+          ultimosCuatroDigitos: pago.ultimosCuatroDigitos,
+          pedido: pago.pedido,
+        },
         mercadopago: {
-          id: pagoMercadoPago.id,
-          status: pagoMercadoPago.status,
-          status_detail: pagoMercadoPago.status_detail,
-          date_approved: pagoMercadoPago.date_approved,
-          transaction_amount: pagoMercadoPago.transaction_amount,
-          installments: pagoMercadoPago.installments,
-          payment_method_id: pagoMercadoPago.payment_method_id,
+          id: pagoMercadoPago.id || null,
+          status: pagoMercadoPago.status || null,
+          status_detail: pagoMercadoPago.status_detail || null,
+          date_approved: pagoMercadoPago.date_approved || null,
+          transaction_amount: pagoMercadoPago.transaction_amount || null,
+          installments: pagoMercadoPago.installments || null,
+          payment_method_id: pagoMercadoPago.payment_method_id || null,
           card: pagoMercadoPago.card
             ? {
-                first_six_digits: pagoMercadoPago.card.first_six_digits,
-                last_four_digits: pagoMercadoPago.card.last_four_digits,
+                first_six_digits: pagoMercadoPago.card.first_six_digits || null,
+                last_four_digits: pagoMercadoPago.card.last_four_digits || null,
               }
             : null,
         },
@@ -205,7 +405,7 @@ export class PaymentService {
 
       const payment = new Payment(this.mercadopago);
 
-      const searchOptions: Record<string, any> = {
+      const searchOptions: Record<string, string | number> = {
         limit: filtros.limit || 50,
         offset: filtros.offset || 0,
       };
@@ -344,6 +544,71 @@ export class PaymentService {
   }
 
   // Métodos privados de utilidad
+  private isErrorWithMessage(error: unknown): error is { message: string } {
+    return typeof error === 'object' && error !== null && 'message' in error;
+  }
+
+  private getErrorMessage(error: unknown): string {
+    if (this.isErrorWithMessage(error)) {
+      return error.message;
+    }
+    return 'Error desconocido';
+  }
+
+  private detectarIssuerIdPeru(firstSixDigits: string): string | null {
+    // Para tarjetas de prueba de MercadoPago Perú, NO enviar issuer_id
+    // El error bin_not_found ocurre cuando se envía un issuer_id incorrecto
+    // Las tarjetas de prueba funcionan mejor sin issuer_id especificado
+
+    const cardInfo = {
+      '503175': 'Mastercard', // 5031 7557 3453 0604
+      '400917': 'Visa', // 4009 1753 3280 6176
+      '371180': 'American Express', // 3711 803032 57522
+      '517878': 'Mastercard Débito', // 5178 7816 2220 2455
+    }[firstSixDigits];
+
+    if (cardInfo) {
+      this.logger.log(
+        `✓ Tarjeta de prueba oficial detectada: ${cardInfo} (${firstSixDigits}) -> SIN issuer_id (recomendado para pruebas)`
+      );
+      // Retornar null para no enviar issuer_id con tarjetas de prueba
+      return null;
+    }
+
+    // Si no es una tarjeta de prueba oficial, advertir en modo test
+    this.logger.warn(
+      `⚠️  BIN ${firstSixDigits} NO es una tarjeta de prueba oficial de MercadoPago Perú`
+    );
+    this.logger.warn(
+      '📋 Use solo tarjetas oficiales: 503175... (MC), 400917... (Visa), 371180... (Amex), 517878... (MC Débito)'
+    );
+
+    return null;
+  }
+
+  private esTargetapruebaOficial(firstSixDigits: string): boolean {
+    // Números de tarjeta de prueba oficiales de MercadoPago Perú
+    const targetsaspruebaOficiales = [
+      '503175', // Mastercard: 5031 7557 3453 0604
+      '400917', // Visa: 4009 1753 3280 6176
+      '371180', // American Express: 3711 803032 57522
+      '517878', // Mastercard débito: 5178 7816 2220 2455
+    ];
+
+    this.logger.log(
+      `🔍 DEBUG esTargetapruebaOficial - Input: "${firstSixDigits}"`
+    );
+    this.logger.log(
+      `🔍 DEBUG esTargetapruebaOficial - Array: ${JSON.stringify(targetsaspruebaOficiales)}`
+    );
+    const resultado = targetsaspruebaOficiales.includes(firstSixDigits);
+    this.logger.log(
+      `🔍 DEBUG esTargetapruebaOficial - Resultado: ${resultado}`
+    );
+
+    return resultado;
+  }
+
   private validarTipoDocumento(numeroDocumento: string): string {
     if (!numeroDocumento || numeroDocumento.length < 8) {
       return 'DNI';
@@ -378,10 +643,21 @@ export class PaymentService {
     }
   }
 
-  private manejarErroresPago(error: any) {
+  private manejarErroresPago(error: unknown) {
+    const errorMessage = this.getErrorMessage(error);
+
+    // Error específico de tarjetas no oficiales en modo test
+    if (errorMessage.includes('bin_not_found')) {
+      throw new BadRequestException(
+        'Tarjeta no válida para modo test. Use solo tarjetas de prueba oficiales de MercadoPago Perú: ' +
+          '5031 7557 3453 0604 (MC), 4009 1753 3280 6176 (Visa), ' +
+          '3711 803032 57522 (Amex) o 5178 7816 2220 2455 (MC Débito)'
+      );
+    }
+
     if (
-      error.message?.includes('invalid_token') ||
-      error.message?.includes('4000')
+      errorMessage.includes('invalid_token') ||
+      errorMessage.includes('4000')
     ) {
       throw new BadRequestException(
         'Token de tarjeta inválido o expirado. Regenere el token desde el frontend.'
@@ -389,30 +665,30 @@ export class PaymentService {
     }
 
     if (
-      error.message?.includes('invalid_payment_method') ||
-      error.message?.includes('3028')
+      errorMessage.includes('invalid_payment_method') ||
+      errorMessage.includes('3028')
     ) {
       throw new BadRequestException(
         'Método de pago no válido para Checkout API. Use tarjetas de crédito o débito.'
       );
     }
 
-    if (error.message?.includes('cc_rejected_insufficient_amount')) {
+    if (errorMessage.includes('cc_rejected_insufficient_amount')) {
       throw new BadRequestException(
         'Tarjeta rechazada por fondos insuficientes.'
       );
     }
 
-    if (error.message?.includes('cc_rejected_bad_filled_security_code')) {
+    if (errorMessage.includes('cc_rejected_bad_filled_security_code')) {
       throw new BadRequestException(
         'Código de seguridad de la tarjeta inválido.'
       );
     }
 
     if (
-      error.message?.includes('cc_rejected_bad_filled_date') ||
-      error.message?.includes('3029') ||
-      error.message?.includes('3030')
+      errorMessage.includes('cc_rejected_bad_filled_date') ||
+      errorMessage.includes('3029') ||
+      errorMessage.includes('3030')
     ) {
       throw new BadRequestException(
         'Fecha de vencimiento de la tarjeta inválida.'
@@ -420,60 +696,64 @@ export class PaymentService {
     }
 
     if (
-      error.message?.includes('cc_rejected_bad_filled_card_number') ||
-      error.message?.includes('3016')
+      errorMessage.includes('cc_rejected_bad_filled_card_number') ||
+      errorMessage.includes('3016')
     ) {
       throw new BadRequestException('Número de tarjeta inválido.');
     }
 
-    if (error.message?.includes('cc_rejected_card_disabled')) {
+    if (errorMessage.includes('cc_rejected_card_disabled')) {
       throw new BadRequestException(
         'Tarjeta deshabilitada. Contacte a su banco emisor.'
       );
     }
 
-    if (error.message?.includes('cc_rejected_duplicated_payment')) {
+    if (errorMessage.includes('cc_rejected_duplicated_payment')) {
       throw new BadRequestException(
         'Ya se procesó un pago con esta información. Use otra tarjeta si necesita realizar otro pago.'
       );
     }
 
-    if (error.message?.includes('cc_rejected_high_risk')) {
+    if (errorMessage.includes('cc_rejected_high_risk')) {
       throw new BadRequestException(
         'Pago rechazado por políticas de seguridad. Intente con otro método de pago.'
       );
     }
 
     throw new BadRequestException(
-      `Error al procesar pago con Checkout API: ${error.message || 'Error desconocido'}`
+      `Error al procesar pago con Checkout API: ${errorMessage}`
     );
   }
 
-  private manejarErroresCancelacion(error: any) {
-    if (error.message?.includes('not found')) {
+  private manejarErroresCancelacion(error: unknown) {
+    const errorMessage = this.getErrorMessage(error);
+
+    if (errorMessage.includes('not found')) {
       throw new NotFoundException('Pago no encontrado en MercadoPago');
     }
 
-    if (error.message?.includes('not valid')) {
+    if (errorMessage.includes('not valid')) {
       throw new BadRequestException(
         'El pago no puede ser cancelado. Solo se pueden cancelar pagos en estado: pending, in_process o authorized'
       );
     }
 
-    throw new BadRequestException(`Error al cancelar pago: ${error.message}`);
+    throw new BadRequestException(`Error al cancelar pago: ${errorMessage}`);
   }
 
-  private manejarErroresCaptura(error: any) {
-    if (error.message?.includes('not found')) {
+  private manejarErroresCaptura(error: unknown) {
+    const errorMessage = this.getErrorMessage(error);
+
+    if (errorMessage.includes('not found')) {
       throw new NotFoundException('Pago no encontrado en MercadoPago');
     }
 
-    if (error.message?.includes('not valid')) {
+    if (errorMessage.includes('not valid')) {
       throw new BadRequestException(
         'El pago no puede ser capturado. Solo se pueden capturar pagos en estado authorized'
       );
     }
 
-    throw new BadRequestException(`Error al capturar pago: ${error.message}`);
+    throw new BadRequestException(`Error al capturar pago: ${errorMessage}`);
   }
 }

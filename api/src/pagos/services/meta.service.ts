@@ -33,14 +33,9 @@ export class MetaService {
       const paymentMethod = new PaymentMethod(this.mercadopago);
       const metodosReales = await paymentMethod.get();
 
-      const config = getMercadoPagoConfig();
-
       return {
-        payment_methods: metodosReales,
-        country: 'PE',
-        currency: 'PEN',
-        test_mode: config.accessToken.startsWith('TEST-'),
-        last_updated: new Date().toISOString(),
+        mensaje: 'Métodos de pago obtenidos exitosamente desde API oficial',
+        data: metodosReales,
       };
     } catch (error) {
       this.logger.error('Error al obtener métodos de pago desde API:', error);
@@ -60,15 +55,15 @@ export class MetaService {
       const tiposIdentificacion = await identificationType.list();
 
       return {
-        identification_types: tiposIdentificacion,
-        country: 'PE',
-        last_updated: new Date().toISOString(),
+        mensaje: 'Tipos de identificación obtenidos exitosamente',
+        data: tiposIdentificacion,
       };
     } catch (error) {
       this.logger.error('Error al obtener tipos de identificación:', error);
 
       return {
-        identification_types: [
+        mensaje: 'Tipos de identificación obtenidos exitosamente (fallback)',
+        data: [
           {
             id: 'DNI',
             name: 'DNI',
@@ -103,14 +98,10 @@ export class MetaService {
   obtenerMetodosPagoDisponibles() {
     try {
       const metodosReales = this.obtenerMetodosPagoReales();
-      const config = getMercadoPagoConfig();
 
       return {
-        payment_methods: metodosReales,
-        country: 'PE',
-        currency: 'PEN',
-        test_mode: config.accessToken.startsWith('TEST-'),
-        identification_types: ['DNI', 'RUC', 'CE'],
+        mensaje: 'Métodos de pago obtenidos exitosamente',
+        data: metodosReales,
       };
     } catch (error) {
       this.logger.error('Error al obtener métodos de pago:', error);
@@ -131,7 +122,7 @@ export class MetaService {
         moneda: 'PEN',
         activo: true,
       },
-      metodos_pago_disponibles: ['visa', 'master', 'amex', 'diners'],
+      metodos_pago_disponibles: ['visa', 'master', 'amex'],
       checkout_api: {
         descripcion: 'MercadoPago Checkout API para Perú',
         requiere_token: true,
@@ -153,6 +144,19 @@ export class MetaService {
           status: 'active',
           thumbnail:
             'https://http2.mlstatic.com/storage/logos-api-admin/a5f047d0-9be0-11ec-aad4-c3381f368aaf-m.svg',
+          secure_thumbnail:
+            'https://http2.mlstatic.com/storage/logos-api-admin/a5f047d0-9be0-11ec-aad4-c3381f368aaf-m.svg',
+          deferred_capture: 'unsupported',
+          settings: [],
+          additional_info_needed: [
+            'cardholder_name',
+            'cardholder_identification_number',
+          ],
+          min_allowed_amount: 1,
+          max_allowed_amount: 25000000,
+          accreditation_time: 0,
+          financial_institutions: [],
+          processing_modes: ['aggregator'],
         },
         {
           id: 'master',
@@ -161,6 +165,19 @@ export class MetaService {
           status: 'active',
           thumbnail:
             'https://http2.mlstatic.com/storage/logos-api-admin/b2c93a40-f3be-11eb-9984-b7076edb0bb7-m.svg',
+          secure_thumbnail:
+            'https://http2.mlstatic.com/storage/logos-api-admin/b2c93a40-f3be-11eb-9984-b7076edb0bb7-m.svg',
+          deferred_capture: 'unsupported',
+          settings: [],
+          additional_info_needed: [
+            'cardholder_name',
+            'cardholder_identification_number',
+          ],
+          min_allowed_amount: 1,
+          max_allowed_amount: 25000000,
+          accreditation_time: 0,
+          financial_institutions: [],
+          processing_modes: ['aggregator'],
         },
         {
           id: 'amex',
@@ -169,14 +186,19 @@ export class MetaService {
           status: 'active',
           thumbnail:
             'https://http2.mlstatic.com/storage/logos-api-admin/fec5f230-06ee-11ea-8b72-39f7d2a38bd9-m.svg',
-        },
-        {
-          id: 'diners',
-          name: 'Diners Club',
-          payment_type_id: 'credit_card',
-          status: 'active',
-          thumbnail:
-            'https://http2.mlstatic.com/storage/logos-api-admin/515b3130-06ee-11ea-8b72-39f7d2a38bd9-m.svg',
+          secure_thumbnail:
+            'https://http2.mlstatic.com/storage/logos-api-admin/fec5f230-06ee-11ea-8b72-39f7d2a38bd9-m.svg',
+          deferred_capture: 'unsupported',
+          settings: [],
+          additional_info_needed: [
+            'cardholder_name',
+            'cardholder_identification_number',
+          ],
+          min_allowed_amount: 1,
+          max_allowed_amount: 25000000,
+          accreditation_time: 0,
+          financial_institutions: [],
+          processing_modes: ['aggregator'],
         },
       ];
     } catch (error) {
@@ -190,12 +212,38 @@ export class MetaService {
           name: 'Visa',
           payment_type_id: 'credit_card',
           status: 'active',
+          thumbnail: '',
+          secure_thumbnail: '',
+          deferred_capture: 'unsupported',
+          settings: [],
+          additional_info_needed: [
+            'cardholder_name',
+            'cardholder_identification_number',
+          ],
+          min_allowed_amount: 1,
+          max_allowed_amount: 25000000,
+          accreditation_time: 0,
+          financial_institutions: [],
+          processing_modes: ['aggregator'],
         },
         {
           id: 'master',
           name: 'Mastercard',
           payment_type_id: 'credit_card',
           status: 'active',
+          thumbnail: '',
+          secure_thumbnail: '',
+          deferred_capture: 'unsupported',
+          settings: [],
+          additional_info_needed: [
+            'cardholder_name',
+            'cardholder_identification_number',
+          ],
+          min_allowed_amount: 1,
+          max_allowed_amount: 25000000,
+          accreditation_time: 0,
+          financial_institutions: [],
+          processing_modes: ['aggregator'],
         },
       ];
     }

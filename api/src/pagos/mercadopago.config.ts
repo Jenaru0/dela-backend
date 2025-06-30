@@ -25,10 +25,15 @@ export const getMercadoPagoConfig = (): MercadoPagoConfiguration => {
     throw new Error('🚨 ERROR: MP_ACCESS_TOKEN y MP_PUBLIC_KEY son requeridos');
   }
 
-  const webhookUrl =
-    process.env.MP_WEBHOOK_URL || 'https://tu-dominio.com/pagos/webhook';
+  // En modo test, el webhook es opcional
+  const webhookUrl = process.env.MP_WEBHOOK_URL || '';
 
-  if (!accessToken.startsWith('TEST-') && webhookUrl.includes('localhost')) {
+  // Solo validar webhook en producción (tokens no TEST)
+  if (
+    !accessToken.startsWith('TEST-') &&
+    webhookUrl &&
+    webhookUrl.includes('localhost')
+  ) {
     throw new Error(
       '🚨 PRODUCCIÓN PERÚ: Las URLs de webhook deben ser HTTPS públicas. ' +
         'Configure MP_WEBHOOK_URL con una URL accesible desde internet.'
