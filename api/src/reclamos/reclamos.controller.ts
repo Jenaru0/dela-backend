@@ -76,11 +76,19 @@ export class ReclamosController {
   }
 
   @Get(':id')
-  findOne(
+  async findOne(
     @Param('id', ParseIntPipe) id: number,
     @Request() req: PeticionAutenticada
   ) {
-    return this.reclamosService.findOne(id, req.user.id, req.user.tipoUsuario);
+    const data = await this.reclamosService.findOne(
+      id,
+      req.user.id,
+      req.user.tipoUsuario
+    );
+    return {
+      mensaje: 'Reclamo obtenido correctamente',
+      data,
+    };
   }
 
   @Patch(':id')
