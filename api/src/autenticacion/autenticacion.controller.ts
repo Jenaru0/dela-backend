@@ -3,6 +3,7 @@ import { AutenticacionService } from './autenticacion.service';
 import { RegistroDto } from './dto/registro.dto';
 import { InicioSesionDto } from './dto/inicio-sesion.dto';
 import { CambiarContrasenaDto } from './dto/cambiar-contrasena.dto';
+import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { JwtAutenticacionGuard } from './guards/jwt-autenticacion.guard';
 
 @Controller('autenticacion')
@@ -20,10 +21,15 @@ export class AutenticacionController {
     return this.autenticacionService.iniciarSesion(dto);
   }
 
+  @Post('refresh-token')
+  async renovarToken(@Body() dto: RefreshTokenDto) {
+    return this.autenticacionService.renovarToken(dto);
+  }
+
   @Post('logout')
-  logout() {
-    // El frontend debe borrar el token. Aquí solo devolvemos un mensaje de éxito.
-    return { mensaje: 'Sesión cerrada correctamente.' };
+  @UseGuards(JwtAutenticacionGuard)
+  async logout(@Request() req: any) {
+    return this.autenticacionService.cerrarSesion(Number(req.user.id));
   }
 
   @Post('cambiar-contrasena')

@@ -9,7 +9,7 @@ import { JwtEstrategia } from './estrategias/jwt.estrategia';
   imports: [
     JwtModule.register({
       secret: process.env.JWT_SECRET || 'super_secreto_seguro', // Usa variable de entorno fuerte
-      signOptions: { expiresIn: process.env.JWT_EXPIRES_IN || '1d' },
+      signOptions: { expiresIn: process.env.JWT_EXPIRES_IN || '15m' }, // Access token más corto
     }),
   ],
   providers: [AutenticacionService, JwtEstrategia],

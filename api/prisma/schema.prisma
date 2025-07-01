@@ -25,6 +25,7 @@ model Usuario {
   pedidos            Pedido[]
   reclamos           Reclamo[]
   recuperaciones     RecuperacionContrasena[]
+  refreshTokens      RefreshToken[]
   reviews            Resena[]
 
   @@map("usuario")
@@ -37,6 +38,18 @@ model AutenticacionUsuario {
   usuario      Usuario   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
 
   @@map("autenticacion_usuario")
+}
+
+model RefreshToken {
+  id         Int      @id @default(autoincrement())
+  token      String   @unique @db.VarChar(255)
+  usuarioId  Int
+  expiracion DateTime
+  creadoEn   DateTime @default(now())
+  revocado   Boolean  @default(false)
+  usuario    Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_token")
 }
 
 model RecuperacionContrasena {
@@ -350,11 +363,11 @@ enum EstadoResena {
 enum EstadoPago {
   PENDIENTE
   PROCESANDO
-  AUTORIZADO
   COMPLETADO
   FALLIDO
   CANCELADO
   REEMBOLSADO
+  AUTORIZADO
 }
 
 enum MetodoPago {

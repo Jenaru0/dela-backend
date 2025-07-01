@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+
 import {
   Injectable,
   NotFoundException,
@@ -14,29 +16,32 @@ export class PedidosService {
   constructor(private readonly prisma: PrismaService) {}
 
   // Helper para convertir Decimals a numbers
-  private convertDecimalFields(pedido: any) {
+
+  private convertDecimalFields(pedido: any): any {
     try {
       return {
         ...pedido,
-        subtotal: parseFloat(pedido.subtotal?.toString() || '0'),
-        impuestos: parseFloat(pedido.impuestos?.toString() || '0'),
-        costoEnvio: parseFloat(pedido.envioMonto?.toString() || '0'),
-        descuento: parseFloat(pedido.descuentoMonto?.toString() || '0'),
-        total: parseFloat(pedido.total?.toString() || '0'),
+        subtotal: parseFloat(String(pedido.subtotal || '0')),
+        impuestos: parseFloat(String(pedido.impuestos || '0')),
+        costoEnvio: parseFloat(String(pedido.envioMonto || '0')),
+        descuento: parseFloat(String(pedido.descuentoMonto || '0')),
+        total: parseFloat(String(pedido.total || '0')),
         detallePedidos:
           pedido.detallePedidos?.map((detalle: any) => {
             try {
+              const producto = detalle.producto || {};
+
+              const imagen = producto?.imagenes?.[0]?.url || null;
+
               return {
                 ...detalle,
-
-                precio: parseFloat(detalle.precioUnitario?.toString() || '0'),
-                subtotal: parseFloat(detalle.subtotal?.toString() || '0'),
+                precio: parseFloat(String(detalle.precioUnitario || '0')),
+                subtotal: parseFloat(String(detalle.subtotal || '0')),
                 producto: {
-                  ...detalle.producto,
-                  imagen: detalle.producto?.imagenes?.[0]?.url || null,
-                  precio: parseFloat(
-                    detalle.producto?.precioUnitario?.toString() || '0'
-                  ),
+                  ...producto,
+
+                  imagen,
+                  precio: parseFloat(String(producto?.precioUnitario || '0')),
                 },
               };
             } catch (detalleError) {
