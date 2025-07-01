@@ -17,6 +17,7 @@ import {
   RespuestaInicioSesion,
   RespuestaRefreshToken,
 } from './interfaces/respuestas.interface';
+import { TipoUsuario } from '@prisma/client';
 
 @Injectable()
 export class AutenticacionService {
@@ -70,7 +71,7 @@ export class AutenticacionService {
         nombres: dto.nombres,
         apellidos: dto.apellidos,
         celular: dto.celular,
-        tipoUsuario: dto.tipoUsuario || 'CLIENTE',
+        tipoUsuario: (dto.tipoUsuario as TipoUsuario) || TipoUsuario.CLIENTE,
       },
     });
 

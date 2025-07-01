@@ -6,6 +6,7 @@ import {
   IsOptional,
   IsEnum,
 } from 'class-validator';
+import { TipoUsuario } from '@prisma/client';
 
 // Este DTO valida los datos enviados al endpoint de registro.
 export class RegistroDto {
@@ -29,8 +30,8 @@ export class RegistroDto {
   celular?: string;
 
   @IsOptional()
-  @IsEnum(['CLIENTE', 'ADMIN'], {
+  @IsEnum(TipoUsuario, {
     message: 'El tipo de usuario debe ser CLIENTE o ADMIN.',
   })
-  tipoUsuario?: 'CLIENTE' | 'ADMIN';
+  tipoUsuario?: TipoUsuario;
 }
