@@ -26,6 +26,20 @@ export class AutenticacionController {
     return this.autenticacionService.renovarToken(dto);
   }
 
+  @Post('verify')
+  @UseGuards(JwtAutenticacionGuard)
+  verificarToken(@Request() req: any) {
+    // Si llega aquí, el token es válido (gracias al guard)
+    return {
+      valido: true,
+      usuario: {
+        id: Number(req.user.id),
+        email: String(req.user.email),
+        tipoUsuario: String(req.user.tipoUsuario),
+      },
+    };
+  }
+
   @Post('logout')
   @UseGuards(JwtAutenticacionGuard)
   async logout(@Request() req: any) {
