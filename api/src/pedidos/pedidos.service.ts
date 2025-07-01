@@ -64,11 +64,14 @@ export class PedidosService {
       throw new NotFoundException('Usuario no encontrado');
     }
 
-    const direccion = await this.prisma.direccionCliente.findFirst({
-      where: { id: dto.direccionId, usuarioId: dto.usuarioId },
-    });
-    if (!direccion) {
-      throw new NotFoundException('Dirección no encontrada');
+    // Solo validar dirección si no es recojo en tienda
+    if (dto.direccionId) {
+      const direccion = await this.prisma.direccionCliente.findFirst({
+        where: { id: dto.direccionId, usuarioId: dto.usuarioId },
+      });
+      if (!direccion) {
+        throw new NotFoundException('Dirección no encontrada');
+      }
     }
 
     let subtotal = 0;
@@ -139,24 +142,30 @@ export class PedidosService {
       .padStart(6, '0')}`;
 
     return this.prisma.$transaction(async (tx) => {
-      const pedido = await tx.pedido.create({
-        data: {
-          numero: numeroPedido,
-          usuarioId: dto.usuarioId,
-          direccionId: dto.direccionId,
-          subtotal,
-          envioMonto,
-          descuentoMonto,
-          total,
-          promocionCodigo: dto.promocionCodigo,
-          metodoPago: dto.metodoPago,
-          metodoEnvio: dto.metodoEnvio,
-          notasCliente: dto.notasCliente,
-          notasInternas: dto.notasInternas,
-          detallePedidos: {
-            create: detallesConPrecios,
-          },
+      const pedidoData: any = {
+        numero: numeroPedido,
+        usuarioId: dto.usuarioId,
+        subtotal,
+        envioMonto,
+        descuentoMonto,
+        total,
+        promocionCodigo: dto.promocionCodigo,
+        metodoPago: dto.metodoPago,
+        metodoEnvio: dto.metodoEnvio,
+        notasCliente: dto.notasCliente,
+        notasInternas: dto.notasInternas,
+        detallePedidos: {
+          create: detallesConPrecios,
         },
+      };
+
+      // Solo agregar direccionId si no es null
+      if (dto.direccionId) {
+        pedidoData.direccionId = dto.direccionId;
+      }
+
+      const pedido = await tx.pedido.create({
+        data: pedidoData,
         include: {
           detallePedidos: {
             include: {

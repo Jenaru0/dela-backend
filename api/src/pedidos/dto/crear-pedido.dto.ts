@@ -21,8 +21,9 @@ export class CreatePedidoDto {
   @IsInt()
   usuarioId: number;
 
+  @IsOptional() // Permitir null para recojo en tienda
   @IsInt()
-  direccionId: number;
+  direccionId: number | null;
 
   @IsArray()
   @ValidateNested({ each: true })

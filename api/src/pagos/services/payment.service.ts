@@ -127,9 +127,30 @@ export class PaymentService {
           );
         }
 
-        // Convertir fecha MM/YY a MM/YYYY
+        // Convertir fecha MM/YY a MM/YYYY de forma inteligente
         const [mes, ano] = dto.datosTarjeta.fechaExpiracion.split('/');
-        const anoCompleto = `20${ano}`;
+        let anoNum = parseInt(ano, 10);
+        const mesNum = parseInt(mes, 10);
+
+        // Convertir YY a YYYY de forma inteligente
+        // Para tarjetas de crédito, siempre asumimos 20XX (nunca 19XX)
+        if (anoNum < 100) {
+          anoNum = 2000 + anoNum;
+        }
+
+        // Validar que la fecha no sea en el pasado
+        const fechaActual = new Date();
+        const anoActual = fechaActual.getFullYear();
+        const mesActual = fechaActual.getMonth() + 1;
+
+        if (
+          anoNum < anoActual ||
+          (anoNum === anoActual && mesNum < mesActual)
+        ) {
+          throw new BadRequestException('La tarjeta ha expirado');
+        }
+
+        const anoCompleto = anoNum.toString();
 
         try {
           // Log de datos que se van a tokenizar (sin mostrar datos sensibles completos)

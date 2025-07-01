@@ -226,29 +226,29 @@ model CarritoItem {
 }
 
 model Pedido {
-  id              Int              @id @default(autoincrement())
-  numero          String           @unique @db.VarChar(20)
+  id              Int               @id @default(autoincrement())
+  numero          String            @unique @db.VarChar(20)
   usuarioId       Int
-  direccionId     Int
-  subtotal        Decimal          @db.Decimal(10, 2)
-  impuestos       Decimal          @default(0.00) @db.Decimal(10, 2)
-  envioMonto      Decimal          @db.Decimal(10, 2)
-  descuentoMonto  Decimal          @default(0.00) @db.Decimal(10, 2)
-  total           Decimal          @db.Decimal(10, 2)
-  promocionCodigo String?          @db.VarChar(50)
-  estado          EstadoPedido     @default(PENDIENTE)
+  direccionId     Int?              // Opcional para recojo en tienda
+  subtotal        Decimal           @db.Decimal(10, 2)
+  impuestos       Decimal           @default(0.00) @db.Decimal(10, 2)
+  envioMonto      Decimal           @db.Decimal(10, 2)
+  descuentoMonto  Decimal           @default(0.00) @db.Decimal(10, 2)
+  total           Decimal           @db.Decimal(10, 2)
+  promocionCodigo String?           @db.VarChar(50)
+  estado          EstadoPedido      @default(PENDIENTE)
   metodoPago      MetodoPago
   metodoEnvio     MetodoEnvio
-  fechaPedido     DateTime         @default(now())
+  fechaPedido     DateTime          @default(now())
   fechaEntrega    DateTime?
   notasCliente    String?
   notasInternas   String?
-  creadoEn        DateTime         @default(now())
-  actualizadoEn   DateTime         @updatedAt
+  creadoEn        DateTime          @default(now())
+  actualizadoEn   DateTime          @updatedAt
   detallePedidos  DetallePedido[]
   pagos           Pago[]
-  direccion       DireccionCliente @relation(fields: [direccionId], references: [id])
-  usuario         Usuario          @relation(fields: [usuarioId], references: [id])
+  direccion       DireccionCliente? @relation(fields: [direccionId], references: [id])
+  usuario         Usuario           @relation(fields: [usuarioId], references: [id])
   reclamos        Reclamo[]
 
   @@index([usuarioId])
