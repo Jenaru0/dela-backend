@@ -114,7 +114,9 @@ export class WebhookService {
       });
 
       if (nuevoEstado === 'COMPLETADO') {
-        await this.verificarEstadoPedido(pago.pedidoId);
+        await this.confirmarPedidoDirectamente(pago.pedidoId);
+      } else if (['FALLIDO', 'CANCELADO', 'RECHAZADO'].includes(nuevoEstado)) {
+        await this.cancelarPedidoPorPagoFallido(pago.pedidoId);
       }
 
       this.logger.log(`Pago actualizado: ${pago.id} - Estado: ${nuevoEstado}`);
@@ -146,6 +148,39 @@ export class WebhookService {
   }
 
   /**
+   * Confirmar pedido directamente (para webhooks con resultado final)
+   */
+  private async confirmarPedidoDirectamente(pedidoId: number): Promise<void> {
+    try {
+      const pedido = await this.prisma.pedido.findUnique({
+        where: { id: pedidoId },
+      });
+
+      if (!pedido) {
+        this.logger.warn(`Pedido no encontrado: ${pedidoId}`);
+        return;
+      }
+
+      // Confirmar directamente desde cualquier estado previo
+      if (pedido.estado === 'PENDIENTE') {
+        await this.prisma.pedido.update({
+          where: { id: pedidoId },
+          data: { estado: 'CONFIRMADO' },
+        });
+        this.logger.log(
+          `✅ Pedido ${pedidoId} confirmado directamente por webhook de pago exitoso`
+        );
+      } else {
+        this.logger.log(
+          `Pedido ${pedidoId} ya está en estado: ${pedido.estado} - no se modifica`
+        );
+      }
+    } catch (error) {
+      this.logger.error(`Error confirmando pedido ${pedidoId}:`, error);
+    }
+  }
+
+  /**
    * Verificar estado del pedido
    */
   private async verificarEstadoPedido(pedidoId: number): Promise<void> {
@@ -159,17 +194,51 @@ export class WebhookService {
         return;
       }
 
-      if (pedido.estado !== 'PENDIENTE') {
+      // Si el pedido está en estado PENDIENTE, lo confirmamos al tener pago exitoso
+      if (pedido.estado === 'PENDIENTE') {
+        await this.prisma.pedido.update({
+          where: { id: pedidoId },
+          data: { estado: 'CONFIRMADO' },
+        });
+        this.logger.log(
+          `✅ Pedido ${pedidoId} confirmado por pago exitoso vía webhook`
+        );
+      } else {
         this.logger.log(
           `Pedido ${pedidoId} ya está en estado: ${pedido.estado}`
         );
+      }
+    } catch (error) {
+      this.logger.error(`Error verificando pedido ${pedidoId}:`, error);
+    }
+  }
+
+  /**
+   * Cancelar pedido por pago fallido
+   */
+  private async cancelarPedidoPorPagoFallido(pedidoId: number): Promise<void> {
+    try {
+      const pedido = await this.prisma.pedido.findUnique({
+        where: { id: pedidoId },
+      });
+
+      if (!pedido) {
+        this.logger.warn(`Pedido no encontrado: ${pedidoId}`);
         return;
       }
 
-      // Lógica para actualizar estado del pedido según sea necesario
-      this.logger.log(`Verificando estado del pedido: ${pedidoId}`);
+      // Si el pedido está en estado PENDIENTE, lo cancelamos por pago fallido
+      if (pedido.estado === 'PENDIENTE') {
+        await this.prisma.pedido.update({
+          where: { id: pedidoId },
+          data: { estado: 'CANCELADO' },
+        });
+        this.logger.log(
+          `❌ Pedido ${pedidoId} cancelado por pago fallido vía webhook`
+        );
+      }
     } catch (error) {
-      this.logger.error(`Error verificando pedido ${pedidoId}:`, error);
+      this.logger.error(`Error cancelando pedido ${pedidoId}:`, error);
     }
   }
 }

@@ -337,6 +337,13 @@ export class PaymentService {
         this.logger.log(
           `✅ Pago aprobado - Pedido ${pedido.numero} confirmado`
         );
+      } else if (
+        ['rejected', 'cancelled', 'failed'].includes(
+          pagoMercadoPago.status || ''
+        )
+      ) {
+        await this.cancelarPedidoPorPagoFallido(dto.pedidoId);
+        this.logger.log(`❌ Pago fallido - Pedido ${pedido.numero} cancelado`);
       }
 
       this.logger.log(
@@ -657,10 +664,13 @@ export class PaymentService {
       throw new NotFoundException('Pedido no encontrado');
     }
 
-    if (pedido.estado !== 'PENDIENTE') {
-      throw new BadRequestException(
-        'El pedido no está en estado válido para procesar pagos'
-      );
+    // Si el pedido está en estado PENDIENTE, lo confirmamos al tener pago exitoso
+    if (pedido.estado === 'PENDIENTE') {
+      await this.prisma.pedido.update({
+        where: { id: pedidoId },
+        data: { estado: 'CONFIRMADO' },
+      });
+      this.logger.log(`✅ Pedido ${pedidoId} confirmado por pago exitoso`);
     }
   }
 
@@ -776,5 +786,25 @@ export class PaymentService {
     }
 
     throw new BadRequestException(`Error al capturar pago: ${errorMessage}`);
+  }
+
+  private async cancelarPedidoPorPagoFallido(pedidoId: number): Promise<void> {
+    const pedido = await this.prisma.pedido.findUnique({
+      where: { id: pedidoId },
+    });
+
+    if (!pedido) {
+      this.logger.warn(`Pedido no encontrado: ${pedidoId}`);
+      return;
+    }
+
+    // Si el pedido está en estado PENDIENTE, lo cancelamos por pago fallido
+    if (pedido.estado === 'PENDIENTE') {
+      await this.prisma.pedido.update({
+        where: { id: pedidoId },
+        data: { estado: 'CANCELADO' },
+      });
+      this.logger.log(`❌ Pedido ${pedidoId} cancelado por pago fallido`);
+    }
   }
 }
