@@ -48,4 +48,25 @@ export class CatalogoService {
       include: { imagenes: true, categoria: true },
     });
   }
+
+  async obtenerEstadisticas() {
+    const [totalProductos, totalCategorias] = await Promise.all([
+      this.prisma.producto.count({
+        where: {
+          estado: 'ACTIVO',
+          stock: { gt: 10 }, // Solo productos con stock mayor a 10
+        },
+      }),
+      this.prisma.categoriaProducto.count({
+        where: {
+          activo: true,
+        },
+      }),
+    ]);
+
+    return {
+      totalProductos,
+      totalCategorias,
+    };
+  }
 }

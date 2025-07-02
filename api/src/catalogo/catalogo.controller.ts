@@ -7,6 +7,11 @@ import { FiltrosCatalogoDto } from './dto/FiltrosCatalogoDto';
 export class CatalogoController {
   constructor(private readonly catalogoService: CatalogoService) {}
 
+  @Get('estadisticas')
+  obtenerEstadisticas() {
+    return this.catalogoService.obtenerEstadisticas();
+  }
+
   @Get('productos')
   obtenerProductos(@Query() filtros: FiltrosCatalogoDto) {
     return this.catalogoService.obtenerProductos(filtros);
