@@ -120,7 +120,7 @@ export class PedidosController {
     const pedido = await this.pedidosService.findOne(id);
 
     // Solo el dueño del pedido o un admin pueden verlo
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+
     if (req.user.tipoUsuario !== 'ADMIN' && pedido.usuarioId !== req.user.id) {
       throw new ForbiddenException('No tienes acceso a este pedido');
     }
