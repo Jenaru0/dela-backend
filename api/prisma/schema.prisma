@@ -127,19 +127,44 @@ model DireccionCliente {
   id             Int      @id @default(autoincrement())
   usuarioId      Int
   alias          String?  @db.VarChar(50)
-  direccion      String
-  distrito       String?  @db.VarChar(100)
-  provincia      String?  @db.VarChar(100)
+  
+  // Dirección completa
+  direccion      String   @db.VarChar(500)
+  numeroExterior String?  @db.VarChar(10)
+  numeroInterior String?  @db.VarChar(10)
+  referencia     String?  @db.VarChar(500)
+  
+  // UBIGEO - Sistema oficial peruano
+  departamento   String   @default("Lima") @db.VarChar(100)   // Lima, Arequipa, etc.
+  provincia      String   @default("Lima") @db.VarChar(100)   // Lima, Callao, etc.
+  distrito       String   @default("Lima") @db.VarChar(100)   // Miraflores, San Isidro, etc.
+  ubigeoId       String?  @db.VarChar(6)     // Código UBIGEO: 150101 (Lima-Lima-Lima)
   codigoPostal   String?  @db.VarChar(10)
-  referencia     String?
+  
+  // Coordenadas geográficas (para cálculos de distancia y validación)
+  latitud        Decimal? @db.Decimal(10, 8)  // -12.0463731
+  longitud       Decimal? @db.Decimal(11, 8)  // -77.0427934
+  
+  // Validación y cobertura
+  validadaGps    Boolean  @default(false)     // Si fue validada con coordenadas GPS
+  enZonaCobertura Boolean @default(true)      // Si está en zona de delivery
+  
+  // Configuración
   predeterminada Boolean  @default(false)
   activa         Boolean  @default(true)
+  
+  // Metadatos para MapTiler
+  mapTilerPlaceId String? @db.VarChar(255)   // ID de MapTiler para cache
+  
   creadoEn       DateTime @default(now())
   actualizadoEn  DateTime @updatedAt
   usuario        Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
   pedidos        Pedido[]
 
   @@index([usuarioId])
+  @@index([departamento, provincia, distrito])
+  @@index([latitud, longitud])
+  @@index([ubigeoId])
   @@map("direccion_cliente")
 }
 
@@ -403,4 +428,27 @@ enum TipoPromocion {
   MONTO_FIJO
   ENVIO_GRATIS
   PRODUCTO_GRATIS
+}
+
+// Tabla UBIGEO - Datos oficiales del INEI de Perú
+model Ubigeo {
+  id           String  @id @db.VarChar(6)  // 150101
+  departamento String  @db.VarChar(100)    // LIMA
+  provincia    String  @db.VarChar(100)    // LIMA  
+  distrito     String  @db.VarChar(100)    // LIMA
+  
+  // Coordenadas del centro geográfico del distrito
+  latitudCentro  Decimal? @db.Decimal(10, 8)
+  longitudCentro Decimal? @db.Decimal(11, 8)
+  
+  // Configuración de delivery
+  tieneCobertura Boolean @default(true)    // Si hacemos delivery en este distrito
+  costoEnvio     Decimal @default(15.00) @db.Decimal(8, 2)  // Costo base de envío
+  
+  activo         Boolean @default(true)
+  creadoEn       DateTime @default(now())
+  actualizadoEn  DateTime @updatedAt
+
+  @@index([departamento, provincia, distrito])
+  @@map("ubigeo")
 }

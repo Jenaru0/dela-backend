@@ -278,15 +278,15 @@ export class DireccionesService {
       where: {
         activa: true,
         provincia: {
-          not: null,
+          not: undefined, // Corregir tipo - debe ser undefined, no null
         },
       },
     });
 
     const porDepartamento: { [key: string]: number } = {};
     direccionesPorProvincia.forEach((item) => {
-      if (item.provincia) {
-        porDepartamento[item.provincia] = item._count.id;
+      if (item.provincia && item._count && typeof item._count !== 'boolean') {
+        porDepartamento[item.provincia] = item._count.id || 0;
       }
     });
 
