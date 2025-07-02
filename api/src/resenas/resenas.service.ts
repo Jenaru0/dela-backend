@@ -57,7 +57,7 @@ export class ResenasService {
       );
     }
 
-    return this.prisma.resena.create({
+    const nuevaResena = await this.prisma.resena.create({
       data: {
         ...createResenaDto,
         usuarioId,
@@ -79,6 +79,8 @@ export class ResenasService {
         },
       },
     });
+    
+    return nuevaResena;
   }
 
   async findAll(page: number = 1, limit: number = 10, estado?: EstadoResena) {

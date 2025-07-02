@@ -15,6 +15,7 @@ import {
 import { ResenasService } from './resenas.service';
 import { CreateResenaDto, UpdateResenaDto } from './dto';
 import { JwtAutenticacionGuard } from '../autenticacion/guards/jwt-autenticacion.guard';
+import { AdminGuard } from '../autenticacion/guards/admin.guard';
 import { EstadoResena } from '@prisma/client';
 import { PeticionAutenticada } from '../autenticacion/interfaces/peticion.interface';
 
@@ -56,7 +57,7 @@ export class ResenasController {
     return this.resenasService.getProductRatingStats(productoId);
   }
   @Get('admin')
-  @UseGuards(JwtAutenticacionGuard)
+  @UseGuards(JwtAutenticacionGuard, AdminGuard)
   findAllAdmin(
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
@@ -66,7 +67,7 @@ export class ResenasController {
   }
 
   @Get('admin/estadisticas')
-  @UseGuards(JwtAutenticacionGuard)
+  @UseGuards(JwtAutenticacionGuard, AdminGuard)
   getStatistics() {
     return this.resenasService.getStatistics();
   }
