@@ -106,7 +106,8 @@ export class PedidosService {
       });
     }
 
-    const envioMonto = dto.metodoEnvio === 'DELIVERY' ? 10.0 : 0.0;
+    const envioMonto = dto.metodoEnvio === 'DELIVERY' ? 15.0 : 0.0;
+    const impuestos = subtotal * 0.18; // 18% IGV (Impuesto General a las Ventas - Perú)
 
     let descuentoMonto = 0;
     if (dto.promocionCodigo) {
@@ -123,7 +124,7 @@ export class PedidosService {
       }
     }
 
-    const total = subtotal + envioMonto - descuentoMonto;
+    const total = subtotal + envioMonto + impuestos - descuentoMonto;
 
     const year = new Date().getFullYear();
     const ultimoPedido = await this.prisma.pedido.findFirst({
@@ -146,6 +147,7 @@ export class PedidosService {
         numero: numeroPedido,
         usuarioId: dto.usuarioId,
         subtotal,
+        impuestos,
         envioMonto,
         descuentoMonto,
         total,
