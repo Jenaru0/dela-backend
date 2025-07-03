@@ -22,11 +22,13 @@ export class NewsletterController {
   @Post('suscribir')
   async suscribir(@Body() suscribirNewsletterDto: SuscribirNewsletterDto) {
     try {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       const suscripcion = await this.newsletterService.suscribir(
         suscribirNewsletterDto
       );
       return {
         mensaje: 'Suscripción al newsletter exitosa',
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         data: suscripcion,
       };
     } catch (error: unknown) {
@@ -184,16 +186,17 @@ export class NewsletterController {
     }
 
     try {
-      const suscripcion = await this.newsletterService.cambiarEstado(id, body.activo);
+      const suscripcion = await this.newsletterService.cambiarEstado(
+        id,
+        body.activo
+      );
       return {
         mensaje: `Suscriptor ${body.activo ? 'activado' : 'desactivado'} correctamente`,
         data: suscripcion,
       };
     } catch (error: unknown) {
       const errorMessage =
-        error instanceof Error
-          ? error.message
-          : 'Error al cambiar estado';
+        error instanceof Error ? error.message : 'Error al cambiar estado';
       return {
         mensaje: errorMessage,
         data: null,
@@ -203,10 +206,7 @@ export class NewsletterController {
 
   @Delete('admin/:id')
   @UseGuards(JwtAutenticacionGuard)
-  async eliminar(
-    @Param('id', ParseIntPipe) id: number,
-    @Request() req
-  ) {
+  async eliminar(@Param('id', ParseIntPipe) id: number, @Request() req) {
     if (req.user.tipoUsuario !== 'ADMIN') {
       throw new ForbiddenException(
         'Solo administradores pueden eliminar suscriptores.'
@@ -221,9 +221,7 @@ export class NewsletterController {
       };
     } catch (error: unknown) {
       const errorMessage =
-        error instanceof Error
-          ? error.message
-          : 'Error al eliminar suscriptor';
+        error instanceof Error ? error.message : 'Error al eliminar suscriptor';
       return {
         mensaje: errorMessage,
         data: null,

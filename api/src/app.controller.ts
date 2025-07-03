@@ -1,5 +1,6 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, UseGuards, Query } from '@nestjs/common';
 import { AppService } from './app.service';
+import { JwtAutenticacionGuard } from './autenticacion/guards/jwt-autenticacion.guard';
 
 @Controller()
 export class AppController {
@@ -18,5 +19,29 @@ export class AppController {
       service: 'dela-platform-api',
       version: '1.0.0',
     };
+  }
+
+  @Get('dashboard/activity')
+  @UseGuards(JwtAutenticacionGuard)
+  async getRecentActivity() {
+    return this.appService.getRecentActivity();
+  }
+
+  @Get('dashboard/stats')
+  @UseGuards(JwtAutenticacionGuard)
+  async getDashboardStats() {
+    return this.appService.getDashboardStats();
+  }
+
+  @Get('dashboard/alerts')
+  @UseGuards(JwtAutenticacionGuard)
+  async getCriticalAlerts() {
+    return this.appService.getCriticalAlerts();
+  }
+
+  @Get('dashboard/sales')
+  @UseGuards(JwtAutenticacionGuard)
+  async getSalesOverview(@Query('period') period?: string) {
+    return this.appService.getSalesOverview(period || 'week');
   }
 }
