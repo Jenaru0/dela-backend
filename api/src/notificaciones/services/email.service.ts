@@ -683,4 +683,95 @@ export class EmailService {
       `;
     }
   }
+
+  /**
+   * Enviar email de recuperación de contraseña
+   */
+  async enviarRecuperacionContrasena(
+    email: string,
+    nombre: string,
+    token: string
+  ): Promise<boolean> {
+    if (!this.isEnabled) {
+      this.logger.warn(
+        '📧 Email de recuperación no enviado - Nodemailer no configurado'
+      );
+      return false;
+    }
+
+    const htmlContent = this.generarHtmlRecuperacionContrasena(nombre, token);
+
+    return this.enviarEmail({
+      to: email,
+      subject: '🔐 Recuperación de contraseña - DELA',
+      html: htmlContent,
+    });
+  }
+
+  /**
+   * Generar HTML para email de recuperación de contraseña
+   */
+  private generarHtmlRecuperacionContrasena(
+    nombre: string,
+    token: string
+  ): string {
+    return `
+      <div style="max-width: 600px; margin: 0 auto; font-family: 'Arial', sans-serif; line-height: 1.6; color: #333;">
+        <!-- Header -->
+        <div style="background: linear-gradient(135deg, #CC9F53 0%, #D4C088 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+          <h1 style="color: white; margin: 0; font-size: 24px; font-weight: bold;">
+            🔐 Recuperación de Contraseña
+          </h1>
+        </div>
+        
+        <!-- Content -->
+        <div style="background: white; padding: 40px 30px; border: 1px solid #e0e0e0; border-top: none;">
+          <p style="margin: 0 0 20px 0; font-size: 18px; color: #CC9F53; font-weight: bold;">
+            Hola ${nombre},
+          </p>
+          
+          <p style="margin: 0 0 20px 0; font-size: 16px; color: #555;">
+            Recibimos una solicitud para restablecer la contraseña de tu cuenta en DELA.
+          </p>
+          
+          <p style="margin: 0 0 30px 0; font-size: 16px; color: #555;">
+            Tu código de verificación es:
+          </p>
+          
+          <!-- Token Box -->
+          <div style="background: #f8f9fa; border: 2px solid #CC9F53; border-radius: 10px; padding: 20px; text-align: center; margin: 30px 0;">
+            <div style="font-size: 32px; font-weight: bold; color: #CC9F53; letter-spacing: 8px; font-family: 'Courier New', monospace;">
+              ${token}
+            </div>
+          </div>
+          
+          <p style="margin: 0 0 20px 0; font-size: 16px; color: #555;">
+            Ingresa este código en la aplicación para crear tu nueva contraseña.
+          </p>
+          
+          <div style="background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 8px; padding: 15px; margin: 20px 0;">
+            <p style="margin: 0; font-size: 14px; color: #856404;">
+              <strong>⚠️ Importante:</strong><br>
+              • Este código expira en 15 minutos<br>
+              • Si no solicitaste este cambio, ignora este email<br>
+              • Por tu seguridad, nunca compartas este código
+            </p>
+          </div>
+          
+          <p style="margin: 30px 0 0 0; font-size: 14px; color: #666; text-align: center;">
+            Si tienes problemas, contáctanos en nuestro centro de ayuda.
+          </p>
+        </div>
+        
+        <!-- Footer -->
+        <div style="background: #f8f9fa; padding: 20px; text-align: center; border-radius: 0 0 10px 10px; border: 1px solid #e0e0e0; border-top: none;">
+          <p style="margin: 0; font-size: 14px; color: #666;">
+            © 2025 DELA. Todos los derechos reservados.<br>
+            <a href="#" style="color: #CC9F53; text-decoration: none;">Términos y Condiciones</a> | 
+            <a href="#" style="color: #CC9F53; text-decoration: none;">Política de Privacidad</a>
+          </p>
+        </div>
+      </div>
+    `;
+  }
 }

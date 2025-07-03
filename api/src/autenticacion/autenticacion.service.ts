@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
+import { EmailService } from '../notificaciones/services/email.service';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { RegistroDto } from './dto/registro.dto';
@@ -23,7 +24,8 @@ import { TipoUsuario } from '@prisma/client';
 export class AutenticacionService {
   constructor(
     private prisma: PrismaService,
-    private jwtService: JwtService
+    private jwtService: JwtService,
+    private emailService: EmailService
   ) {}
 
   // Método privado para generar access token
@@ -319,5 +321,167 @@ export class AutenticacionService {
     return {
       mensaje: 'Sesión cerrada exitosamente.',
     };
+  }
+
+  // ============ MÉTODOS DE RECUPERACIÓN DE CONTRASEÑA ============
+
+  async solicitarRecuperacionContrasena(
+    email: string
+  ): Promise<{ mensaje: string }> {
+    // Buscar el usuario por email
+    const usuario = await this.prisma.usuario.findUnique({
+      where: { email },
+    });
+
+    // Por seguridad, siempre devolvemos el mismo mensaje
+    // sin revelar si el email existe o no
+    const mensajeRespuesta =
+      'Si el correo está registrado, recibirás un email con instrucciones para recuperar tu contraseña.';
+
+    if (!usuario) {
+      return { mensaje: mensajeRespuesta };
+    }
+
+    if (!usuario.activo) {
+      return { mensaje: mensajeRespuesta };
+    }
+
+    // Invalidar tokens de recuperación anteriores
+    await this.prisma.recuperacionContrasena.updateMany({
+      where: {
+        usuarioId: usuario.id,
+        usado: false,
+        expiracion: { gt: new Date() },
+      },
+      data: { usado: true },
+    });
+
+    // Generar token de recuperación (6 dígitos)
+    const token = Math.floor(100000 + Math.random() * 900000).toString();
+
+    // Crear registro de recuperación con expiración de 15 minutos
+    const expiracion = new Date();
+    expiracion.setMinutes(expiracion.getMinutes() + 15);
+
+    await this.prisma.recuperacionContrasena.create({
+      data: {
+        usuarioId: usuario.id,
+        token,
+        expiracion,
+      },
+    });
+
+    // Enviar email con el token de recuperación
+    try {
+      const nombreCompleto = `${usuario.nombres} ${usuario.apellidos}`;
+      const emailEnviado = await this.emailService.enviarRecuperacionContrasena(
+        usuario.email,
+        nombreCompleto,
+        token
+      );
+
+      if (emailEnviado) {
+        console.log(`✅ Email de recuperación enviado a ${email}`);
+      } else {
+        console.log(
+          `⚠️ Email de recuperación no pudo ser enviado a ${email} - Token: ${token}`
+        );
+      }
+    } catch (error) {
+      console.error('❌ Error enviando email de recuperación:', error);
+      // Como backup, logeamos el token
+      console.log(`🔄 Token de recuperación para ${email}: ${token}`);
+    }
+
+    return { mensaje: mensajeRespuesta };
+  }
+
+  async validarTokenRecuperacion(
+    token: string
+  ): Promise<{ valido: boolean; mensaje: string }> {
+    const recuperacion = await this.prisma.recuperacionContrasena.findUnique({
+      where: { token },
+      include: { usuario: true },
+    });
+
+    if (!recuperacion) {
+      return { valido: false, mensaje: 'Token inválido.' };
+    }
+
+    if (recuperacion.usado) {
+      return { valido: false, mensaje: 'Este token ya ha sido utilizado.' };
+    }
+
+    if (recuperacion.expiracion < new Date()) {
+      // Marcar como usado si está expirado
+      await this.prisma.recuperacionContrasena.update({
+        where: { id: recuperacion.id },
+        data: { usado: true },
+      });
+      return {
+        valido: false,
+        mensaje: 'El token ha expirado. Solicita uno nuevo.',
+      };
+    }
+
+    if (!recuperacion.usuario.activo) {
+      return { valido: false, mensaje: 'La cuenta está desactivada.' };
+    }
+
+    return { valido: true, mensaje: 'Token válido.' };
+  }
+
+  async restablecerContrasena(
+    token: string,
+    nuevaContrasena: string,
+    confirmarContrasena: string
+  ): Promise<{ mensaje: string }> {
+    // Validar que las contraseñas coincidan
+    if (nuevaContrasena !== confirmarContrasena) {
+      throw new BadRequestException('Las contraseñas no coinciden.');
+    }
+
+    // Validar longitud de contraseña
+    if (nuevaContrasena.length < 6) {
+      throw new BadRequestException(
+        'La contraseña debe tener al menos 6 caracteres.'
+      );
+    }
+
+    // Validar token
+    const validacion = await this.validarTokenRecuperacion(token);
+    if (!validacion.valido) {
+      throw new UnauthorizedException(validacion.mensaje);
+    }
+
+    // Obtener la recuperación con usuario
+    const recuperacion = await this.prisma.recuperacionContrasena.findUnique({
+      where: { token },
+      include: { usuario: { include: { auth: true } } },
+    });
+
+    if (!recuperacion || !recuperacion.usuario.auth) {
+      throw new UnauthorizedException('Error de autenticación.');
+    }
+
+    // Hash de la nueva contraseña
+    const nuevaContrasenaHash = await bcrypt.hash(nuevaContrasena, 12);
+
+    // Actualizar la contraseña
+    await this.prisma.autenticacionUsuario.update({
+      where: { usuarioId: recuperacion.usuarioId },
+      data: { contrasena: nuevaContrasenaHash },
+    });
+
+    // Marcar el token como usado
+    await this.prisma.recuperacionContrasena.update({
+      where: { id: recuperacion.id },
+      data: { usado: true },
+    });
+
+    // Revocar todos los refresh tokens existentes por seguridad
+    await this.revokeUserRefreshTokens(recuperacion.usuarioId);
+
+    return { mensaje: 'Contraseña restablecida exitosamente.' };
   }
 }

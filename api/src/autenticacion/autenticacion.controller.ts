@@ -4,6 +4,11 @@ import { RegistroDto } from './dto/registro.dto';
 import { InicioSesionDto } from './dto/inicio-sesion.dto';
 import { CambiarContrasenaDto } from './dto/cambiar-contrasena.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
+import {
+  SolicitarRecuperacionDto,
+  ValidarTokenDto,
+  RestablecerContrasenaDto,
+} from './dto/recuperacion-contrasena.dto';
 import { JwtAutenticacionGuard } from './guards/jwt-autenticacion.guard';
 
 @Controller('autenticacion')
@@ -55,6 +60,27 @@ export class AutenticacionController {
     return this.autenticacionService.cambiarContrasena(
       Number(req.user.id),
       dto
+    );
+  }
+
+  // ============ ENDPOINTS DE RECUPERACIÓN DE CONTRASEÑA ============
+
+  @Post('solicitar-recuperacion')
+  async solicitarRecuperacion(@Body() dto: SolicitarRecuperacionDto) {
+    return this.autenticacionService.solicitarRecuperacionContrasena(dto.email);
+  }
+
+  @Post('validar-token-recuperacion')
+  async validarTokenRecuperacion(@Body() dto: ValidarTokenDto) {
+    return this.autenticacionService.validarTokenRecuperacion(dto.token);
+  }
+
+  @Post('restablecer-contrasena')
+  async restablecerContrasena(@Body() dto: RestablecerContrasenaDto) {
+    return this.autenticacionService.restablecerContrasena(
+      dto.token,
+      dto.nuevaContrasena,
+      dto.confirmarContrasena
     );
   }
 }
