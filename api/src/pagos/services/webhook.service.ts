@@ -8,6 +8,8 @@ import {
   MERCADOPAGO_STATUS_MAPPING,
 } from '../mercadopago.config';
 import { WebhookMercadoPagoDto } from '../dto/webhook-mercadopago.dto';
+import { NotificacionService } from '../../notificaciones/services/notificacion.service';
+import { ContextoPago } from '../../notificaciones/types/notificacion.types';
 
 /**
  * Servicio dedicado al manejo de webhooks de MercadoPago
@@ -18,7 +20,10 @@ export class WebhookService {
   private readonly logger = new Logger(WebhookService.name);
   private mercadopago: MercadoPagoConfig;
 
-  constructor(private readonly prisma: PrismaService) {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notificacionService: NotificacionService
+  ) {
     const config = getMercadoPagoConfig();
     this.mercadopago = createMercadoPagoConfig(config);
   }
@@ -86,11 +91,26 @@ export class WebhookService {
       const pagoMercadoPago = await payment.get({ id: paymentId });
 
       this.logger.log(
-        `Procesando pago MP ID: ${paymentId} - Estado: ${pagoMercadoPago.status}`
+        `Procesando pago MP ID: ${paymentId} - Estado: ${pagoMercadoPago.status} - Status Detail: ${pagoMercadoPago.status_detail}`
       );
 
       const pago = await this.prisma.pago.findFirst({
         where: { mercadopagoId: paymentId },
+        include: {
+          pedido: {
+            include: {
+              usuario: {
+                select: {
+                  id: true,
+                  nombres: true,
+                  apellidos: true,
+                  email: true,
+                  celular: true,
+                },
+              },
+            },
+          },
+        },
       });
 
       if (!pago) {
@@ -98,11 +118,23 @@ export class WebhookService {
         return;
       }
 
+      // Determinar el nuevo estado basado en status o status_detail
+      const estadoReferencia =
+        pagoMercadoPago.status_detail || pagoMercadoPago.status || 'unknown';
       const nuevoEstado =
         MERCADOPAGO_STATUS_MAPPING[
-          pagoMercadoPago.status as keyof typeof MERCADOPAGO_STATUS_MAPPING
+          estadoReferencia as keyof typeof MERCADOPAGO_STATUS_MAPPING
         ] || 'PENDIENTE';
 
+      // Log detallado del estado
+      this.logger.log(
+        `📊 Estado detectado: ${estadoReferencia} -> ${nuevoEstado}`
+      );
+      this.logger.log(
+        `📋 ${this.notificacionService.getDescripcionEstado(estadoReferencia)}`
+      );
+
+      // Actualizar pago en base de datos
       await this.prisma.pago.update({
         where: { id: pago.id },
         data: {
@@ -113,8 +145,40 @@ export class WebhookService {
         },
       });
 
+      // Construir contexto para notificaciones
+      const contextoPago: ContextoPago = {
+        pagoId: pago.id,
+        mercadopagoId: pago.mercadopagoId || paymentId,
+        monto: Number(pago.monto),
+        moneda: 'PEN', // Asumiendo PEN para Perú
+        metodoPago: pago.paymentMethodId || 'Tarjeta',
+        ultimosCuatroDigitos: pago.ultimosCuatroDigitos || undefined,
+        fechaPago: pagoMercadoPago.date_approved
+          ? new Date(pagoMercadoPago.date_approved)
+          : undefined,
+        pedidoId: pago.pedidoId,
+        numeroPedido: pago.pedido.numero,
+        usuario: {
+          id: pago.pedido.usuario.id,
+          nombres: pago.pedido.usuario.nombres || 'Usuario',
+          apellidos: pago.pedido.usuario.apellidos || '',
+          email: pago.pedido.usuario.email,
+          celular: pago.pedido.usuario.celular || undefined,
+        },
+      };
+
+      // Enviar notificación basada en el estado
+      await this.notificacionService.enviarNotificacionPorEstado(
+        estadoReferencia,
+        contextoPago
+      );
+
+      // Manejar estados específicos del pedido
       if (nuevoEstado === 'COMPLETADO') {
         await this.confirmarPedidoDirectamente(pago.pedidoId);
+      } else if (nuevoEstado === 'PENDIENTE' && estadoReferencia === 'CONT') {
+        // Para estado CONT (pendiente), el pedido debería mantenerse en procesamiento
+        await this.procesarPedidoComoContendiente(pago.pedidoId);
       } else if (['FALLIDO', 'CANCELADO', 'RECHAZADO'].includes(nuevoEstado)) {
         await this.cancelarPedidoPorPagoFallido(pago.pedidoId);
       }
@@ -239,6 +303,39 @@ export class WebhookService {
       }
     } catch (error) {
       this.logger.error(`Error cancelando pedido ${pedidoId}:`, error);
+    }
+  }
+
+  /**
+   * Procesar pedido como pendiente contendiente (estado CONT)
+   * Para estado CONT, el pedido se mantiene procesando pero en estado especial
+   */
+  private async procesarPedidoComoContendiente(
+    pedidoId: number
+  ): Promise<void> {
+    try {
+      const pedido = await this.prisma.pedido.findUnique({
+        where: { id: pedidoId },
+      });
+
+      if (!pedido) {
+        this.logger.warn(`Pedido no encontrado: ${pedidoId}`);
+        return;
+      }
+
+      // Para estado CONT, mantenemos el pedido en estado pendiente
+      // pero con una nota especial de que está en procesamiento
+      this.logger.log(
+        `⏳ Pedido ${pedidoId} en estado CONT - manteniendo procesamiento pendiente`
+      );
+
+      // Opcionalmente, podríamos agregar un campo de metadatos o estado especial
+      // Por ahora, solo logueamos que está en este estado especial
+    } catch (error) {
+      this.logger.error(
+        `Error procesando pedido contendiente ${pedidoId}:`,
+        error
+      );
     }
   }
 }

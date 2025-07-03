@@ -17,6 +17,8 @@ import {
   MercadoPagoPaymentResponse,
   MercadoPagoTokenResponse,
 } from '../types/mercadopago.types';
+import { NotificacionService } from '../../notificaciones/services/notificacion.service';
+import { ContextoPago } from '../../notificaciones/types/notificacion.types';
 
 /**
  * Servicio dedicado exclusivamente a Payment API de MercadoPago
@@ -27,7 +29,10 @@ export class PaymentService {
   private readonly logger = new Logger(PaymentService.name);
   private mercadopago: MercadoPagoConfig;
 
-  constructor(private readonly prisma: PrismaService) {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notificacionService: NotificacionService
+  ) {
     const config = getMercadoPagoConfig();
     this.mercadopago = createMercadoPagoConfig(config);
   }
@@ -40,7 +45,17 @@ export class PaymentService {
 
     const pedido = await this.prisma.pedido.findUnique({
       where: { id: dto.pedidoId },
-      include: { usuario: true },
+      include: {
+        usuario: {
+          select: {
+            id: true,
+            nombres: true,
+            apellidos: true,
+            email: true,
+            celular: true,
+          },
+        },
+      },
     });
 
     if (!pedido) {
@@ -325,6 +340,7 @@ export class PaymentService {
                   nombres: true,
                   apellidos: true,
                   email: true,
+                  celular: true,
                 },
               },
             },
@@ -345,6 +361,34 @@ export class PaymentService {
         await this.cancelarPedidoPorPagoFallido(dto.pedidoId);
         this.logger.log(`❌ Pago fallido - Pedido ${pedido.numero} cancelado`);
       }
+
+      // Enviar notificación inmediata basada en el estado del pago
+      const contextoPago: ContextoPago = {
+        pagoId: pago.id,
+        mercadopagoId: pago.mercadopagoId || pagoMercadoPago.id?.toString(),
+        monto: Number(pago.monto),
+        moneda: 'PEN',
+        metodoPago: pago.paymentMethodId || 'Tarjeta',
+        ultimosCuatroDigitos: pago.ultimosCuatroDigitos || undefined,
+        fechaPago: pago.fechaPago || undefined,
+        pedidoId: pago.pedidoId,
+        numeroPedido: pago.pedido.numero,
+        usuario: {
+          id: pago.pedido.usuario.id,
+          nombres: pago.pedido.usuario.nombres || 'Usuario',
+          apellidos: pago.pedido.usuario.apellidos || '',
+          email: pago.pedido.usuario.email,
+          celular: pago.pedido.usuario.celular || undefined,
+        },
+      };
+
+      // Enviar notificación basada en el estado
+      const estadoNotificacion =
+        pagoMercadoPago.status_detail || pagoMercadoPago.status || 'unknown';
+      await this.notificacionService.enviarNotificacionPorEstado(
+        estadoNotificacion,
+        contextoPago
+      );
 
       this.logger.log(
         `🎯 Pago creado - MP ID: ${pagoMercadoPago.id} - Estado: ${pagoMercadoPago.status}`

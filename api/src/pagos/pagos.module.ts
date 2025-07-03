@@ -9,7 +9,11 @@ import { CustomerService } from './services/customer.service';
 import { MetaService } from './services/meta.service';
 import { WebhookService } from './services/webhook.service';
 
+// Módulo de notificaciones
+import { NotificacionModule } from '../notificaciones/notificacion.module';
+
 @Module({
+  imports: [NotificacionModule],
   controllers: [PagosController],
   providers: [
     PagosService,

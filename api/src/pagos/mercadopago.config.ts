@@ -48,6 +48,7 @@ export const getMercadoPagoConfig = (): MercadoPagoConfiguration => {
 };
 
 export const MERCADOPAGO_STATUS_MAPPING = {
+  // Estados estándar de MercadoPago API
   pending: 'PENDIENTE',
   approved: 'COMPLETADO',
   authorized: 'AUTORIZADO',
@@ -57,4 +58,14 @@ export const MERCADOPAGO_STATUS_MAPPING = {
   cancelled: 'CANCELADO',
   refunded: 'REEMBOLSADO',
   charged_back: 'REEMBOLSADO',
+
+  // Estados específicos de status_detail para webhooks
+  APRO: 'COMPLETADO', // Pago aprobado
+  OTHE: 'FALLIDO', // Rechazado por error general
+  CONT: 'PENDIENTE', // Pendiente de pago (debería procesar pedido en pendiente)
+  CALL: 'PENDIENTE', // Rechazado con validación para autorizar
+  FUND: 'FALLIDO', // Rechazado por importe insuficiente
+  SECU: 'FALLIDO', // Rechazado por código de seguridad inválido
+  EXPI: 'FALLIDO', // Rechazado debido a problema de fecha de vencimiento
+  FORM: 'FALLIDO', // Rechazado debido a error de formulario
 } as const;
