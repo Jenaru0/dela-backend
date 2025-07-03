@@ -235,4 +235,33 @@ export class UsuariosService {
       totalPages: Math.ceil(total / limit),
     };
   }
+
+  // Método para obtener el perfil actualizado del usuario autenticado
+  async obtenerPerfilActualizado(usuarioId: number) {
+    const usuario = await this.prisma.usuario.findUnique({
+      where: { id: usuarioId },
+      select: {
+        id: true,
+        email: true,
+        nombres: true,
+        apellidos: true,
+        celular: true,
+        tipoUsuario: true,
+        activo: true,
+        suscrito_newsletter: true,
+        creadoEn: true,
+        actualizadoEn: true,
+      },
+    });
+
+    if (!usuario) {
+      throw new NotFoundException('Usuario no encontrado');
+    }
+
+    if (!usuario.activo) {
+      throw new NotFoundException('Usuario inactivo');
+    }
+
+    return usuario;
+  }
 }

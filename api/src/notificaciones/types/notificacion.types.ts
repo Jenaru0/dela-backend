@@ -15,6 +15,8 @@ export enum TipoNotificacion {
   PAGO_VALIDACION_REQUERIDA = 'PAGO_VALIDACION_REQUERIDA',
   PEDIDO_CONFIRMADO = 'PEDIDO_CONFIRMADO',
   PEDIDO_PROCESANDO = 'PEDIDO_PROCESANDO',
+  NEWSLETTER_SUSCRIPCION = 'NEWSLETTER_SUSCRIPCION',
+  NEWSLETTER_DESUSCRIPCION = 'NEWSLETTER_DESUSCRIPCION',
 }
 
 export enum CanalNotificacion {
@@ -65,6 +67,17 @@ export interface PlantillaNotificacion {
   mensaje: string;
   templateEmail?: string;
   templateSMS?: string;
+}
+
+export interface ContextoNewsletter {
+  email: string;
+  fechaAccion: Date;
+  tipoAccion: 'suscripcion' | 'desuscripcion';
+  usuario?: {
+    id?: number;
+    nombres?: string;
+    apellidos?: string;
+  };
 }
 
 /**

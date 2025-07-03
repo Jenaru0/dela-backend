@@ -30,7 +30,11 @@ export class AutenticacionService {
   private generateAccessToken(payload: {
     sub: number;
     email: string;
+    nombres?: string;
+    apellidos?: string;
+    celular?: string;
     tipoUsuario: string;
+    activo: boolean;
   }): string {
     return this.jwtService.sign(payload, {
       secret: process.env.JWT_SECRET || 'super_secreto_seguro',
@@ -114,6 +118,10 @@ export class AutenticacionService {
       throw new UnauthorizedException(
         'Error de autenticación interna, comunícate con soporte.'
       );
+    if (!usuario.activo)
+      throw new UnauthorizedException(
+        'Esta cuenta ha sido desactivada. Contacta al servicio de atención al cliente para más información.'
+      );
 
     const valido = await bcrypt.compare(
       dto.contrasena,
@@ -124,13 +132,22 @@ export class AutenticacionService {
         'La contraseña es incorrecta. Verifica y vuelve a intentarlo.'
       );
 
-    // Revocar todos los refresh tokens existentes del usuario
-    await this.revokeUserRefreshTokens(usuario.id);
+    // Limpiar refresh tokens expirados (opcional, no todos)
+    await this.prisma.refreshToken.deleteMany({
+      where: {
+        usuarioId: usuario.id,
+        expiracion: { lt: new Date() },
+      },
+    });
 
     const payload = {
       sub: usuario.id,
       email: usuario.email,
+      nombres: usuario.nombres || undefined,
+      apellidos: usuario.apellidos || undefined,
+      celular: usuario.celular || undefined,
       tipoUsuario: usuario.tipoUsuario,
+      activo: usuario.activo,
     };
 
     const accessToken = this.generateAccessToken(payload);
@@ -250,14 +267,21 @@ export class AutenticacionService {
       throw new UnauthorizedException('Usuario inactivo.');
     }
 
-    // Revocar el refresh token usado y todos los demás del usuario
-    await this.revokeUserRefreshTokens(refreshTokenRecord.usuarioId);
+    // Revocar solo el refresh token que se está usando (no todos)
+    await this.prisma.refreshToken.update({
+      where: { id: refreshTokenRecord.id },
+      data: { revocado: true },
+    });
 
     // Generar nuevos tokens
     const payload = {
       sub: refreshTokenRecord.usuario.id,
       email: refreshTokenRecord.usuario.email,
+      nombres: refreshTokenRecord.usuario.nombres || undefined,
+      apellidos: refreshTokenRecord.usuario.apellidos || undefined,
+      celular: refreshTokenRecord.usuario.celular || undefined,
       tipoUsuario: refreshTokenRecord.usuario.tipoUsuario,
+      activo: refreshTokenRecord.usuario.activo,
     };
 
     const newAccessToken = this.generateAccessToken(payload);

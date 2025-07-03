@@ -16,6 +16,7 @@ model Usuario {
   creadoEn           DateTime                 @default(now())
   actualizadoEn      DateTime                 @updatedAt
   activo             Boolean                  @default(true)
+  suscrito_newsletter Boolean                 @default(false)
   tipoUsuario        TipoUsuario              @default(CLIENTE)
   auth               AutenticacionUsuario?
   carrito            Carrito?
@@ -143,15 +144,12 @@ model DireccionCliente {
   mapTilerPlaceId String?  @db.VarChar(255)
   numeroExterior  String?  @db.VarChar(10)
   numeroInterior  String?  @db.VarChar(10)
-  ubigeoId        String?  @db.VarChar(6)
-  validadaGps     Boolean  @default(false)
   usuario         Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
   pedidos         Pedido[]
 
   @@index([usuarioId])
   @@index([departamento, provincia, distrito])
   @@index([latitud, longitud])
-  @@index([ubigeoId])
   @@map("direccion_cliente")
 }
 
@@ -339,22 +337,7 @@ model ComentarioReclamo {
   @@map("comentario_reclamo")
 }
 
-model Ubigeo {
-  id             String   @id @db.VarChar(6)
-  departamento   String   @db.VarChar(100)
-  provincia      String   @db.VarChar(100)
-  distrito       String   @db.VarChar(100)
-  latitudCentro  Decimal? @db.Decimal(10, 8)
-  longitudCentro Decimal? @db.Decimal(11, 8)
-  tieneCobertura Boolean  @default(true)
-  costoEnvio     Decimal  @default(15.00) @db.Decimal(8, 2)
-  activo         Boolean  @default(true)
-  creadoEn       DateTime @default(now())
-  actualizadoEn  DateTime @updatedAt
 
-  @@index([departamento, provincia, distrito])
-  @@map("ubigeo")
-}
 
 enum TipoUsuario {
   CLIENTE

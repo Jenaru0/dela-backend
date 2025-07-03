@@ -7,6 +7,9 @@ import {
   UseGuards,
   Request,
   ForbiddenException,
+  Patch,
+  Delete,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { NewsletterService } from './newsletter.service';
 import { SuscribirNewsletterDto } from './dto/suscribir-newsletter.dto';
@@ -103,6 +106,127 @@ export class NewsletterController {
       return {
         mensaje: errorMessage,
         data: [],
+      };
+    }
+  }
+
+  @Get('admin/todos')
+  @UseGuards(JwtAutenticacionGuard)
+  async obtenerTodosAdmin(@Request() req) {
+    // Solo admin puede ver todas las suscripciones
+    if (req.user.tipoUsuario !== 'ADMIN') {
+      throw new ForbiddenException(
+        'Solo administradores pueden ver las suscripciones.'
+      );
+    }
+
+    try {
+      const suscripciones = await this.newsletterService.obtenerTodos();
+      return {
+        mensaje: 'Lista de suscripciones obtenida correctamente',
+        data: suscripciones,
+      };
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : 'Error al obtener suscripciones';
+      return {
+        mensaje: errorMessage,
+        data: [],
+      };
+    }
+  }
+
+  @Get('admin/estadisticas')
+  @UseGuards(JwtAutenticacionGuard)
+  async obtenerEstadisticas(@Request() req) {
+    if (req.user.tipoUsuario !== 'ADMIN') {
+      throw new ForbiddenException(
+        'Solo administradores pueden ver las estadísticas.'
+      );
+    }
+
+    try {
+      const estadisticas = await this.newsletterService.obtenerEstadisticas();
+      return {
+        mensaje: 'Estadísticas obtenidas correctamente',
+        data: estadisticas,
+      };
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : 'Error al obtener estadísticas';
+      return {
+        mensaje: errorMessage,
+        data: {
+          total: 0,
+          activos: 0,
+          inactivos: 0,
+          nuevosEsteMes: 0,
+        },
+      };
+    }
+  }
+
+  @Patch('admin/:id/estado')
+  @UseGuards(JwtAutenticacionGuard)
+  async cambiarEstado(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: { activo: boolean },
+    @Request() req
+  ) {
+    if (req.user.tipoUsuario !== 'ADMIN') {
+      throw new ForbiddenException(
+        'Solo administradores pueden cambiar el estado.'
+      );
+    }
+
+    try {
+      const suscripcion = await this.newsletterService.cambiarEstado(id, body.activo);
+      return {
+        mensaje: `Suscriptor ${body.activo ? 'activado' : 'desactivado'} correctamente`,
+        data: suscripcion,
+      };
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : 'Error al cambiar estado';
+      return {
+        mensaje: errorMessage,
+        data: null,
+      };
+    }
+  }
+
+  @Delete('admin/:id')
+  @UseGuards(JwtAutenticacionGuard)
+  async eliminar(
+    @Param('id', ParseIntPipe) id: number,
+    @Request() req
+  ) {
+    if (req.user.tipoUsuario !== 'ADMIN') {
+      throw new ForbiddenException(
+        'Solo administradores pueden eliminar suscriptores.'
+      );
+    }
+
+    try {
+      await this.newsletterService.eliminar(id);
+      return {
+        mensaje: 'Suscriptor eliminado correctamente',
+        data: null,
+      };
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : 'Error al eliminar suscriptor';
+      return {
+        mensaje: errorMessage,
+        data: null,
       };
     }
   }

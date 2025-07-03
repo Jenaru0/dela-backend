@@ -77,7 +77,9 @@ export class UsuariosController {
   @Get('me')
   @UseGuards(JwtAutenticacionGuard)
   async getProfile(@Request() req: PeticionAutenticada) {
-    const usuario = await this.usuariosService.findOne(Number(req.user.id));
+    const usuario = await this.usuariosService.obtenerPerfilActualizado(
+      Number(req.user.id)
+    );
     return {
       mensaje: 'Perfil obtenido correctamente.',
       data: usuario,

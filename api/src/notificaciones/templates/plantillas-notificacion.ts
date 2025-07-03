@@ -400,4 +400,145 @@ export const PLANTILLAS_NOTIFICACION: Record<
     templateSMS:
       'DELA: Pedido #{{numeroPedido}} en procesamiento. Te avisaremos cuando esté listo.',
   },
+
+  [TipoNotificacion.NEWSLETTER_SUSCRIPCION]: {
+    titulo: '¡Bienvenido a nuestro Newsletter!',
+    mensaje:
+      'Te has suscrito exitosamente a nuestro newsletter. Recibirás noticias y ofertas exclusivas.',
+    prioridad: PrioridadNotificacion.NORMAL,
+    canales: [CanalNotificacion.EMAIL],
+    templateEmail: `
+      <div style="max-width: 600px; margin: 0 auto; font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+        <div style="background: linear-gradient(135deg, #CC9F53 0%, #B8903D 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+          <h1 style="color: white; margin: 0; font-size: 28px; font-weight: bold;">
+            ¡Bienvenido a DELA! 🎉
+          </h1>
+        </div>
+        
+        <div style="background: white; padding: 30px; border: 1px solid #e0e0e0; border-top: none;">
+          <h2 style="color: #CC9F53; margin-top: 0;">¡Gracias por suscribirte!</h2>
+          
+          <p style="font-size: 16px; margin-bottom: 20px;">
+            Hola {{nombreCompleto | email}},
+          </p>
+          
+          <p style="font-size: 16px; margin-bottom: 20px;">
+            Te has suscrito exitosamente a nuestro newsletter. Ahora recibirás:
+          </p>
+          
+          <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <ul style="margin: 0; padding-left: 20px;">
+              <li style="margin-bottom: 8px;">📧 Noticias sobre nuevos productos</li>
+              <li style="margin-bottom: 8px;">🎯 Ofertas y descuentos exclusivos</li>
+              <li style="margin-bottom: 8px;">📱 Actualizaciones de la plataforma</li>
+              <li style="margin-bottom: 8px;">💡 Tips y consejos</li>
+            </ul>
+          </div>
+          
+          <div style="background: #e8f5e8; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #4caf50;">
+            <p style="margin: 0; color: #2e7d32;">
+              <strong>✅ Suscripción confirmada</strong><br>
+              Email: {{email}}<br>
+              Fecha: {{fechaAccion}}
+            </p>
+          </div>
+          
+          <p style="font-size: 16px; margin-bottom: 20px;">
+            Puedes cancelar tu suscripción en cualquier momento desde tu perfil de usuario.
+          </p>
+          
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}" 
+               style="background: #CC9F53; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
+              Visitar DELA
+            </a>
+          </div>
+        </div>
+        
+        <div style="background: #f8f9fa; padding: 20px; text-align: center; border-radius: 0 0 10px 10px; border: 1px solid #e0e0e0; border-top: none;">
+          <p style="margin: 0; font-size: 14px; color: #666;">
+            © 2025 DELA. Todos los derechos reservados.<br>
+            <a href="#" style="color: #CC9F53; text-decoration: none;">Términos y Condiciones</a> | 
+            <a href="#" style="color: #CC9F53; text-decoration: none;">Política de Privacidad</a>
+          </p>
+        </div>
+      </div>
+    `,
+    templateSMS:
+      'DELA: ¡Bienvenido! Te has suscrito al newsletter. Recibirás ofertas exclusivas.',
+  },
+
+  [TipoNotificacion.NEWSLETTER_DESUSCRIPCION]: {
+    titulo: 'Has cancelado tu suscripción al newsletter',
+    mensaje: 'Tu suscripción al newsletter ha sido cancelada exitosamente.',
+    prioridad: PrioridadNotificacion.NORMAL,
+    canales: [CanalNotificacion.EMAIL],
+    templateEmail: `
+      <div style="max-width: 600px; margin: 0 auto; font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+        <div style="background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+          <h1 style="color: white; margin: 0; font-size: 28px; font-weight: bold;">
+            Hasta pronto 👋
+          </h1>
+        </div>
+        
+        <div style="background: white; padding: 30px; border: 1px solid #e0e0e0; border-top: none;">
+          <h2 style="color: #6b7280; margin-top: 0;">Suscripción cancelada</h2>
+          
+          <p style="font-size: 16px; margin-bottom: 20px;">
+            Hola {{nombreCompleto | email}},
+          </p>
+          
+          <p style="font-size: 16px; margin-bottom: 20px;">
+            Has cancelado tu suscripción a nuestro newsletter exitosamente.
+          </p>
+          
+          <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #ffc107;">
+            <p style="margin: 0; color: #856404;">
+              <strong>ℹ️ Confirmación de cancelación</strong><br>
+              Email: {{email}}<br>
+              Fecha: {{fechaAccion}}
+            </p>
+          </div>
+          
+          <p style="font-size: 16px; margin-bottom: 20px;">
+            Ya no recibirás emails promocionales de nuestra parte. Sin embargo, seguirás recibiendo:
+          </p>
+          
+          <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <ul style="margin: 0; padding-left: 20px;">
+              <li style="margin-bottom: 8px;">📧 Confirmaciones de pedidos</li>
+              <li style="margin-bottom: 8px;">📦 Actualizaciones de envíos</li>
+              <li style="margin-bottom: 8px;">🔐 Notificaciones de seguridad</li>
+              <li style="margin-bottom: 8px;">💬 Respuestas a tus consultas</li>
+            </ul>
+          </div>
+          
+          <p style="font-size: 16px; margin-bottom: 20px;">
+            Si cambiaste de opinión, puedes volver a suscribirte en cualquier momento desde tu perfil de usuario.
+          </p>
+          
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/perfil" 
+               style="background: #CC9F53; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
+              Volver a suscribirme
+            </a>
+          </div>
+          
+          <p style="font-size: 14px; color: #666; text-align: center;">
+            ¡Esperamos verte pronto de nuevo!
+          </p>
+        </div>
+        
+        <div style="background: #f8f9fa; padding: 20px; text-align: center; border-radius: 0 0 10px 10px; border: 1px solid #e0e0e0; border-top: none;">
+          <p style="margin: 0; font-size: 14px; color: #666;">
+            © 2025 DELA. Todos los derechos reservados.<br>
+            <a href="#" style="color: #CC9F53; text-decoration: none;">Términos y Condiciones</a> | 
+            <a href="#" style="color: #CC9F53; text-decoration: none;">Política de Privacidad</a>
+          </p>
+        </div>
+      </div>
+    `,
+    templateSMS:
+      'DELA: Tu suscripción al newsletter ha sido cancelada. Puedes volver a suscribirte cuando quieras.',
+  },
 };
