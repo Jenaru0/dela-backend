@@ -16,6 +16,7 @@ import { CreatePedidoDto } from './dto/crear-pedido.dto';
 import { UpdatePedidoDto } from './dto/update-pedido.dto';
 import { FiltrosPedidosDto } from './dto/filtros-pedidos.dto';
 import { CambiarEstadoDto } from './dto/cambiar-estado.dto';
+import { ProcesarPedidoDto } from './dto/procesar-pedido.dto';
 import { JwtAutenticacionGuard } from '../autenticacion/guards/jwt-autenticacion.guard';
 import { EstadoPedido } from '@prisma/client';
 
@@ -162,5 +163,34 @@ export class PedidosController {
     }
 
     return this.pedidosService.cambiarEstado(id, dto.estado, dto.notasInternas);
+  }
+
+  /**
+   * NUEVO ENDPOINT: Procesar pedido con pago integrado
+   * Este endpoint implementa el flujo correcto:
+   * 1. Valida stock y datos
+   * 2. Procesa el pago
+   * 3. Solo si el pago es exitoso, crea el pedido y descuenta stock
+   */
+  @Post('procesar-con-pago')
+  async procesarPedidoConPago(
+    @Body() dto: ProcesarPedidoDto,
+    @Request() req: AuthenticatedRequest
+  ) {
+    // Solo el usuario puede crear su propio pedido o un admin
+    if (req.user.tipoUsuario !== 'ADMIN' && req.user.id !== dto.usuarioId) {
+      throw new ForbiddenException('Solo puedes crear tus propios pedidos');
+    }
+
+    const resultado = await this.pedidosService.procesarPedidoConPago(dto);
+    return {
+      mensaje: resultado.mensaje,
+      data: {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        pedido: resultado.pedido,
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        pago: resultado.pago,
+      },
+    };
   }
 }

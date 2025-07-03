@@ -4,16 +4,24 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreatePedidoDto } from './dto/crear-pedido.dto';
 import { UpdatePedidoDto } from './dto/update-pedido.dto';
 import { FiltrosPedidosDto } from './dto/filtros-pedidos.dto';
 import { EstadoPedido, Prisma } from '@prisma/client';
+import { PagosService } from '../pagos/pagos.service';
+import { ProcesarPedidoDto } from './dto/procesar-pedido.dto';
 
 @Injectable()
 export class PedidosService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(PedidosService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly pagosService: PagosService
+  ) {}
 
   // Helper para convertir Decimals a numbers
 
@@ -609,5 +617,259 @@ export class PedidosService {
             : 'Error desconocido de conexión',
       };
     }
+  }
+
+  /**
+   * NUEVO MÉTODO: Procesar pedido con pago integrado
+   * Este es el flujo CORRECTO:
+   * 1. Validar stock y datos
+   * 2. Procesar pago
+   * 3. Solo si pago es exitoso: crear pedido + descontar stock
+   */
+  async procesarPedidoConPago(dto: ProcesarPedidoDto) {
+    this.logger.log('🔄 Iniciando procesamiento de pedido con pago integrado');
+
+    // 1. VALIDAR USUARIO
+    const usuario = await this.prisma.usuario.findUnique({
+      where: { id: dto.usuarioId },
+    });
+    if (!usuario) {
+      throw new NotFoundException('Usuario no encontrado');
+    }
+
+    // 2. VALIDAR PRODUCTOS Y CALCULAR TOTALES
+    let subtotal = 0;
+    const detallesConPrecios: Array<{
+      productoId: number;
+      cantidad: number;
+      precioUnitario: number;
+      subtotal: number;
+    }> = [];
+
+    for (const detalle of dto.detalles) {
+      const producto = await this.prisma.producto.findUnique({
+        where: { id: detalle.productoId },
+      });
+
+      if (!producto) {
+        throw new NotFoundException(
+          `Producto con ID ${detalle.productoId} no encontrado`
+        );
+      }
+
+      if (producto.stock < detalle.cantidad) {
+        throw new BadRequestException(
+          `Stock insuficiente para el producto ${producto.nombre}. Stock disponible: ${producto.stock}, solicitado: ${detalle.cantidad}`
+        );
+      }
+
+      const subtotalDetalle =
+        Number(producto.precioUnitario) * detalle.cantidad;
+      subtotal += subtotalDetalle;
+
+      detallesConPrecios.push({
+        productoId: detalle.productoId,
+        cantidad: detalle.cantidad,
+        precioUnitario: Number(producto.precioUnitario),
+        subtotal: subtotalDetalle,
+      });
+    }
+
+    // 3. CALCULAR TOTALES FINALES
+    const envioMonto = dto.metodoEnvio === 'DELIVERY' ? 15.0 : 0.0;
+    const impuestos = subtotal * 0.18; // IGV Perú
+
+    let descuentoMonto = 0;
+    if (dto.promocionCodigo) {
+      const promocion = await this.prisma.promocion.findUnique({
+        where: { codigo: dto.promocionCodigo },
+      });
+
+      if (promocion && promocion.activo) {
+        if (promocion.tipo === 'PORCENTAJE') {
+          descuentoMonto = (subtotal * Number(promocion.valor)) / 100;
+        } else if (promocion.tipo === 'MONTO_FIJO') {
+          descuentoMonto = Number(promocion.valor);
+        }
+      }
+    }
+
+    const total = subtotal + envioMonto + impuestos - descuentoMonto;
+
+    this.logger.log(`💰 Total calculado: S/ ${total.toFixed(2)}`);
+
+    // 4. PROCESAR PAGO PRIMERO
+    let pagoRespuesta;
+    try {
+      if (
+        dto.metodoPago === 'visa' ||
+        dto.metodoPago === 'master' ||
+        dto.metodoPago === 'amex'
+      ) {
+        this.logger.log('💳 Procesando pago con tarjeta...');
+
+        // Mapear los campos para que coincidan con el DTO de pagos
+        const datosTarjetaConvertidos = dto.datosTarjeta
+          ? {
+              ...dto.datosTarjeta,
+              email: dto.datosTarjeta.email || usuario.email,
+            }
+          : undefined;
+
+        pagoRespuesta = await this.pagosService.crearPagoDirectoMercadoPago({
+          pedidoId: 0, // Temporal, se actualizará después
+          monto: Math.round(total * 100), // Convertir a centavos
+          metodoPago: dto.metodoPago,
+          token: dto.token,
+          datosTarjeta: datosTarjetaConvertidos,
+          issuerId: dto.issuerId,
+        });
+
+        this.logger.log('✅ Pago procesado exitosamente:', {
+          id: pagoRespuesta.id,
+          estado: pagoRespuesta.status,
+          monto: pagoRespuesta.transaction_amount,
+        });
+
+        // Verificar que el pago fue aprobado
+        if (pagoRespuesta.status !== 'approved') {
+          throw new BadRequestException(
+            `Pago rechazado: ${
+              pagoRespuesta.status_detail || 'Error en el procesamiento'
+            }`
+          );
+        }
+      } else {
+        // Para otros métodos de pago que no requieren procesamiento inmediato
+        pagoRespuesta = {
+          id: `PENDING-${Date.now()}`,
+          status: 'pending',
+          transaction_amount: total,
+          status_detail: 'Pago pendiente de confirmación',
+        };
+      }
+    } catch (error) {
+      this.logger.error('❌ Error al procesar pago:', error.message);
+      throw new BadRequestException(`Error al procesar pago: ${error.message}`);
+    }
+
+    // 5. SOLO SI EL PAGO FUE EXITOSO: CREAR PEDIDO Y DESCONTAR STOCK
+    return this.prisma.$transaction(async (tx) => {
+      // Generar número de pedido definitivo
+      const year = new Date().getFullYear();
+      const ultimoPedido = await tx.pedido.findFirst({
+        where: { numero: { startsWith: `PED-${year}-` } },
+        orderBy: { numero: 'desc' },
+      });
+
+      let siguienteNumero = 1;
+      if (ultimoPedido) {
+        const numeroActual = parseInt(ultimoPedido.numero.split('-')[2]);
+        siguienteNumero = numeroActual + 1;
+      }
+
+      const numeroPedido = `PED-${year}-${siguienteNumero
+        .toString()
+        .padStart(6, '0')}`;
+
+      // Crear pedido
+      const pedidoData: any = {
+        numero: numeroPedido,
+        usuarioId: dto.usuarioId,
+        subtotal,
+        impuestos,
+        envioMonto,
+        descuentoMonto,
+        total,
+        promocionCodigo: dto.promocionCodigo,
+        metodoPago: dto.metodoPago,
+        metodoEnvio: dto.metodoEnvio,
+        notasCliente: dto.notasCliente,
+        notasInternas: dto.notasInternas,
+        detallePedidos: {
+          create: detallesConPrecios.map((detalle) => ({
+            productoId: detalle.productoId,
+            cantidad: detalle.cantidad,
+            precioUnitario: detalle.precioUnitario,
+            subtotal: detalle.subtotal,
+          })),
+        },
+      };
+
+      if (dto.direccionId) {
+        pedidoData.direccionId = dto.direccionId;
+      }
+
+      const pedido = await tx.pedido.create({
+        data: pedidoData,
+        include: {
+          detallePedidos: {
+            include: {
+              producto: true,
+            },
+          },
+          direccion: true,
+          usuario: true,
+        },
+      });
+
+      // Descontar stock SOLO después de crear el pedido exitosamente
+      for (const detalle of detallesConPrecios) {
+        await tx.producto.update({
+          where: { id: detalle.productoId },
+          data: {
+            stock: {
+              decrement: detalle.cantidad,
+            },
+          },
+        });
+      }
+
+      // Crear registro de pago en la base de datos
+      if (pagoRespuesta.status === 'approved') {
+        await tx.pago.create({
+          data: {
+            pedidoId: pedido.id,
+            monto: total,
+            estado: 'COMPLETADO',
+            mercadopagoId: pagoRespuesta.id.toString(),
+            paymentMethodId: dto.metodoPago,
+            ultimosCuatroDigitos: dto.datosTarjeta?.numeroTarjeta?.slice(-4),
+            cuotas: 1,
+            fechaPago: new Date(),
+          },
+        });
+
+        // Actualizar estado del pedido a CONFIRMADO
+        await tx.pedido.update({
+          where: { id: pedido.id },
+          data: { estado: 'CONFIRMADO' },
+        });
+      } else {
+        // Para pagos pendientes
+        await tx.pago.create({
+          data: {
+            pedidoId: pedido.id,
+            monto: total,
+            estado: 'PENDIENTE',
+            mercadopagoId: pagoRespuesta.id.toString(),
+            paymentMethodId: dto.metodoPago,
+          },
+        });
+      }
+
+      this.logger.log(
+        `✅ Pedido ${numeroPedido} creado exitosamente con pago procesado`
+      );
+
+      return {
+        pedido: this.convertDecimalFields(pedido),
+        pago: pagoRespuesta,
+        mensaje:
+          pagoRespuesta.status === 'approved'
+            ? 'Pedido creado y pago procesado exitosamente'
+            : 'Pedido creado, pago pendiente de confirmación',
+      };
+    });
   }
 }
