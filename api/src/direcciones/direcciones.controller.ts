@@ -19,7 +19,6 @@ import { DireccionesService } from './direcciones.service';
 import { CreateDireccionDto } from './dto/create-direccion.dto';
 import { UpdateDireccionDto } from './dto/update-direccion.dto';
 import { JwtAutenticacionGuard } from '../autenticacion/guards/jwt-autenticacion.guard';
-import { CreateDireccionSimpleDto } from './dto/create-direccion-simple.dto';
 
 interface PeticionAutenticada extends Request {
   user: {
@@ -214,67 +213,5 @@ export class DireccionesController {
       mensaje: 'Estadísticas obtenidas correctamente.',
       data: estadisticas,
     };
-  }
-
-  @Post('simple')
-  async createSimple(
-    @Body() createDireccionDto: CreateDireccionSimpleDto,
-    @Request() req: PeticionAutenticada
-  ) {
-    try {
-      this.logger.log(`Usuario ${req.user.id} creando dirección SIMPLE`);
-      this.logger.debug(
-        'Datos recibidos SIMPLE:',
-        JSON.stringify(createDireccionDto, null, 2)
-      );
-
-      // Convertir datos de forma segura
-      const datosLimpios = {
-        alias: createDireccionDto.alias || null,
-        direccion: createDireccionDto.direccion,
-        departamento: createDireccionDto.departamento || 'Lima',
-        provincia: createDireccionDto.provincia || 'Lima',
-        distrito: createDireccionDto.distrito || 'Lima',
-        referencia: createDireccionDto.referencia || null,
-        predeterminada: createDireccionDto.predeterminada || false,
-        codigoPostal: createDireccionDto.codigoPostal || null,
-        latitud: this.convertToDecimal(createDireccionDto.latitud),
-        longitud: this.convertToDecimal(createDireccionDto.longitud),
-        validadaGps: createDireccionDto.validadaGps || false,
-        mapTilerPlaceId: createDireccionDto.mapTilerPlaceId || null,
-      };
-
-      this.logger.debug('Datos convertidos:', JSON.stringify(datosLimpios, null, 2));
-
-      const direccion = await this.direccionesService.createSimple(
-        req.user.id,
-        datosLimpios
-      );
-
-      this.logger.log(`Dirección SIMPLE creada exitosamente con ID: ${direccion.id}`);
-
-      return {
-        mensaje: 'Dirección creada correctamente (modo simple).',
-        data: direccion,
-      };
-    } catch (error) {
-      this.logger.error('Error al crear dirección SIMPLE:', error.message);
-      this.logger.error('Stack trace:', error.stack);
-      this.logger.error('Error completo:', JSON.stringify(error, null, 2));
-
-      throw new HttpException(
-        `Error específico: ${error.message}`,
-        HttpStatus.INTERNAL_SERVER_ERROR
-      );
-    }
-  }
-
-  private convertToDecimal(value: any): number | null {
-    if (value === null || value === undefined || value === '') {
-      return null;
-    }
-    
-    const num = typeof value === 'string' ? parseFloat(value) : Number(value);
-    return isNaN(num) || !isFinite(num) ? null : num;
   }
 }

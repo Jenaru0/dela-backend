@@ -79,63 +79,6 @@ export class DireccionesService {
     }
   }
 
-  async createSimple(usuarioId: number, datosLimpios: any) {
-    try {
-      this.logger.log(`Creando dirección SIMPLE para usuario ${usuarioId}`);
-      this.logger.debug('Datos limpios recibidos:', JSON.stringify(datosLimpios, null, 2));
-      
-      const { predeterminada = false, ...direccionData } = datosLimpios;
-
-      if (predeterminada) {
-        this.logger.debug('Marcando otras direcciones como no predeterminadas');
-        await this.prisma.direccionCliente.updateMany({
-          where: {
-            usuarioId,
-            predeterminada: true,
-          },
-          data: {
-            predeterminada: false,
-          },
-        });
-      }
-
-      // Preparar datos finales asegurando tipos correctos
-      const datosFinales = {
-        alias: direccionData.alias,
-        direccion: direccionData.direccion,
-        departamento: direccionData.departamento,
-        provincia: direccionData.provincia,
-        distrito: direccionData.distrito,
-        referencia: direccionData.referencia,
-        codigoPostal: direccionData.codigoPostal,
-        latitud: direccionData.latitud,
-        longitud: direccionData.longitud,
-        mapTilerPlaceId: direccionData.mapTilerPlaceId,
-        usuarioId,
-        predeterminada,
-        // Campos con valores por defecto
-        activa: true,
-        enZonaCobertura: true,
-      };
-
-      this.logger.debug('Datos finales a insertar:', JSON.stringify(datosFinales, null, 2));
-
-      const direccion = await this.prisma.direccionCliente.create({
-        data: datosFinales,
-      });
-      
-      this.logger.log(`Dirección SIMPLE creada exitosamente con ID: ${direccion.id}`);
-      return direccion;
-      
-    } catch (error) {
-      this.logger.error('Error en servicio SIMPLE al crear dirección:', error.message);
-      this.logger.error('Error code:', error.code);
-      this.logger.error('Error details:', error.meta);
-      this.logger.error('Prisma error completo:', JSON.stringify(error, null, 2));
-      throw error;
-    }
-  }
-
   async findOne(id: number, usuarioId: number) {
     const direccion = await this.prisma.direccionCliente.findFirst({
       where: {
