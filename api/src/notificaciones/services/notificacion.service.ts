@@ -7,10 +7,13 @@ import {
   ESTADO_A_NOTIFICACION_MAP,
 } from '../types/notificacion.types';
 import { PLANTILLAS_NOTIFICACION } from '../templates/plantillas-notificacion';
+import { EmailService } from './email.service';
 
 @Injectable()
 export class NotificacionService {
   private readonly logger = new Logger(NotificacionService.name);
+
+  constructor(private readonly emailService: EmailService) {}
 
   /**
    * Enviar notificación basada en el estado de pago de MercadoPago
@@ -215,17 +218,45 @@ export class NotificacionService {
    */
   private async enviarEmail(datos: DatosNotificacion): Promise<boolean> {
     try {
-      this.logger.log(`📧 EMAIL enviado a: ${datos.contexto.usuario.email}`);
-      this.logger.log(`📧 Asunto: ${datos.titulo}`);
+      // Verificar si el EmailService está configurado
+      if (!this.emailService.isConfigured()) {
+        this.logger.warn(
+          '📧 EmailService no configurado - usando modo simulación'
+        );
+        // Mantener el comportamiento anterior como fallback
+        this.logger.log(`📧 EMAIL enviado a: ${datos.contexto.usuario.email}`);
+        this.logger.log(`📧 Asunto: ${datos.titulo}`);
+        await new Promise((resolve) => setTimeout(resolve, 100)); // Simular latencia
+        this.logger.log('📧 ✅ Email enviado exitosamente (simulado)');
+        return true;
+      }
 
-      // Aquí iría la integración real con servicio de email
-      // Por ejemplo: SendGrid, AWS SES, Nodemailer, etc.
+      // Usar Resend para casos de pago exitoso
+      if (datos.tipo === TipoNotificacion.PAGO_APROBADO) {
+        this.logger.log(`📧 Enviando email de confirmación de pago con Resend`);
+        return await this.emailService.enviarConfirmacionPago(datos.contexto);
+      }
 
-      // SIMULACIÓN - en producción implementar servicio real
-      await new Promise((resolve) => setTimeout(resolve, 100)); // Simular latencia
-      this.logger.log('📧 ✅ Email enviado exitosamente (simulado)');
+      // Para otros tipos de notificación, usar el email genérico de Resend
+      const emailEnviado = await this.emailService.enviarEmail({
+        to: datos.contexto.usuario.email,
+        subject: datos.titulo,
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <h2 style="color: #333;">${datos.titulo}</h2>
+            <div style="background-color: #f9f9f9; padding: 20px; border-radius: 8px; margin: 20px 0;">
+              ${datos.mensaje.replace(/\n/g, '<br>')}
+            </div>
+            <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+            <p style="color: #666; font-size: 14px;">
+              Este email fue enviado a ${datos.contexto.usuario.email}<br>
+              © ${new Date().getFullYear()} DELA. Todos los derechos reservados.
+            </p>
+          </div>
+        `,
+      });
 
-      return true;
+      return emailEnviado;
     } catch (error) {
       this.logger.error('Error enviando email:', error);
       return false;
@@ -342,6 +373,7 @@ export class NotificacionService {
       EXPI: '⏰ Rechazado debido a problema de fecha de vencimiento',
       FORM: '📝 Rechazado debido a error de formulario',
       approved: '✅ Pago aprobado',
+      accredited: '✅ Pago acreditado', // ← AGREGADO
       pending: '⏳ Pago pendiente',
       rejected: '❌ Pago rechazado',
       cancelled: '🚫 Pago cancelado',

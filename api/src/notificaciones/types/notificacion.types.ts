@@ -74,6 +74,7 @@ export const ESTADO_A_NOTIFICACION_MAP: Record<string, TipoNotificacion> = {
   // Estados exitosos
   APRO: TipoNotificacion.PAGO_APROBADO,
   approved: TipoNotificacion.PAGO_APROBADO,
+  accredited: TipoNotificacion.PAGO_APROBADO, // ← AGREGADO: Para pagos acreditados
 
   // Estados pendientes
   CONT: TipoNotificacion.PAGO_PENDIENTE,
