@@ -1,12 +1,5 @@
-import {
-  IsString,
-  IsOptional,
-  IsBoolean,
-  IsNumber,
-  Min,
-  Max,
-} from 'class-validator';
-import { Transform, Type } from 'class-transformer';
+import { IsString, IsOptional, IsBoolean } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class CreateDireccionDto {
   @IsOptional()
@@ -47,26 +40,10 @@ export class CreateDireccionDto {
 
   @IsOptional()
   @Type(() => Number)
-  @Transform(({ value }) => {
-    if (value === null || value === undefined || value === '') return undefined;
-    const num = typeof value === 'string' ? parseFloat(value) : Number(value);
-    return isNaN(num) ? undefined : num;
-  })
-  @IsNumber({}, { message: 'La latitud debe ser un número decimal válido.' })
-  @Min(-90, { message: 'La latitud debe estar entre -90 y 90 grados.' })
-  @Max(90, { message: 'La latitud debe estar entre -90 y 90 grados.' })
   latitud?: number;
 
   @IsOptional()
   @Type(() => Number)
-  @Transform(({ value }) => {
-    if (value === null || value === undefined || value === '') return undefined;
-    const num = typeof value === 'string' ? parseFloat(value) : Number(value);
-    return isNaN(num) ? undefined : num;
-  })
-  @IsNumber({}, { message: 'La longitud debe ser un número decimal válido.' })
-  @Min(-180, { message: 'La longitud debe estar entre -180 y 180 grados.' })
-  @Max(180, { message: 'La longitud debe estar entre -180 y 180 grados.' })
   longitud?: number;
 
   @IsOptional()
