@@ -307,7 +307,7 @@ export class PaymentService {
 
       const pagoMercadoPago = (await payment.create({
         body: paymentData,
-      })) as MercadoPagoPaymentResponse;
+      })) as unknown as MercadoPagoPaymentResponse;
 
       if (!pagoMercadoPago.id) {
         throw new BadRequestException('Error al crear pago en MercadoPago');
