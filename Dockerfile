@@ -19,8 +19,23 @@ COPY api/ ./
 # Generamos el Prisma Client
 RUN npx prisma generate
 
-# Construimos la aplicación
-RUN npm run build
+# Construimos la aplicación y forzamos generación de main.js
+RUN npm run build && \
+    echo "=== FORZANDO GENERACIÓN DE MAIN.JS SI NO EXISTE ===" && \
+    if [ ! -f dist/main.js ]; then \
+        echo "main.js no encontrado, compilando directamente..." && \
+        npx tsc src/main.ts --outDir dist --module commonjs --target es2020 --experimentalDecorators --emitDecoratorMetadata; \
+    fi
+
+# Verificamos que el build se haya completado correctamente
+RUN echo "=== VERIFICANDO BUILD ===" && \
+    ls -la . && \
+    echo "=== CONTENIDO DE DIST ===" && \
+    ls -la dist/ && \
+    echo "=== VERIFICANDO MAIN.JS ===" && \
+    test -f dist/main.js && echo "✅ main.js encontrado" || echo "❌ main.js NO encontrado" && \
+    echo "=== ESTRUCTURA COMPLETA ===" && \
+    find dist -type f -name "*.js" | head -10
 
 # ========================================
 # 🚀 Stage 2: Runner (Imagen final)
@@ -48,5 +63,5 @@ EXPOSE 3001
 # Cambiamos al usuario no-root
 USER nestjs
 
-# Comando de inicio optimizado
-CMD ["node", "dist/main.js"]
+# Comando de inicio optimizado con fallback
+CMD ["sh", "-c", "if [ -f dist/main.js ]; then node dist/main.js; else echo 'Error: main.js no encontrado' && ls -la dist/ && exit 1; fi"]
