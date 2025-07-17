@@ -23,7 +23,11 @@
     "db:backup": "node scripts/backup-data.js",
     "db:restore": "node scripts/restore-data.js",
     "db:restore:list": "node scripts/restore-data.js list",
-    "db:reset-restore": "powershell -ExecutionPolicy Bypass -File scripts/reset-and-restore.ps1"
+    "db:reset-restore": "powershell -ExecutionPolicy Bypass -File scripts/reset-and-restore.ps1",
+    "audit": "npm audit --audit-level=moderate",
+    "docker:lint": "docker run --rm -i -v \"${PWD}/..:/workspace\" hadolint/hadolint hadolint --config /workspace/.hadolint.yaml /workspace/Dockerfile",
+    "docker:lint:win": "powershell -ExecutionPolicy Bypass -File hadolint-check.ps1",
+    "docker:lint:all": "powershell -ExecutionPolicy Bypass -File hadolint-check-all.ps1"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.3",
